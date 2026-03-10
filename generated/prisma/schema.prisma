@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  workspaces Workspace[]
+}
+
+model Workspace {
+  id      String @id @default(cuid())
+  name    String
+  ownerId String
+
+  owner User   @relation(fields: [ownerId], references: [id])
+  bases Base[]
+}
+
+model Base {
+  id          String @id @default(cuid())
+  name        String
+  workspaceId String
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id])
+  tables    AirtableTable[]
+}
+
+model AirtableTable {
+  id     String @id @default(cuid())
+  name   String
+  baseId String
+
+  base    Base     @relation(fields: [baseId], references: [id])
+  fields  Field[]
+  records Record[]
+}
+
+model Field {
+  id      String @id @default(cuid())
+  name    String
+  tableId String
+
+  table AirtableTable @relation(fields: [tableId], references: [id])
+  cells Cell[]
+}
+
+model Record {
+  id      String @id @default(cuid())
+  tableId String
+
+  table AirtableTable @relation(fields: [tableId], references: [id])
+  cells Cell[]
+}
+
+model Cell {
+  id       String  @id @default(cuid())
+  recordId String
+  fieldId  String
+  value    String?
+
+  record Record @relation(fields: [recordId], references: [id])
+  field  Field  @relation(fields: [fieldId], references: [id])
+}
