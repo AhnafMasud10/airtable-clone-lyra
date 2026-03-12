@@ -1,0 +1,71 @@
+-- CreateEnum
+CREATE TYPE "ViewType" AS ENUM ('GRID', 'KANBAN', 'CALENDAR', 'GALLERY', 'FORM');
+
+-- CreateEnum
+CREATE TYPE "FieldType" AS ENUM ('TEXT', 'LONG_TEXT', 'NUMBER', 'BOOLEAN', 'DATE', 'SINGLE_SELECT', 'MULTI_SELECT');
+
+-- AlterTable
+ALTER TABLE "Base"
+ADD COLUMN "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable
+ALTER TABLE "AirtableTable"
+ADD COLUMN "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable
+ALTER TABLE "Field"
+ADD COLUMN "type" "FieldType" NOT NULL DEFAULT 'TEXT',
+ADD COLUMN "order" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "options" JSONB,
+ADD COLUMN "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable
+ALTER TABLE "Record"
+ADD COLUMN "order" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable
+ALTER TABLE "Cell"
+ADD COLUMN "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- CreateTable
+CREATE TABLE "View" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "type" "ViewType" NOT NULL DEFAULT 'GRID',
+    "tableId" TEXT NOT NULL,
+    "config" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "View_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "AirtableTable_baseId_idx" ON "AirtableTable"("baseId");
+
+-- CreateIndex
+CREATE INDEX "Field_tableId_idx" ON "Field"("tableId");
+
+-- CreateIndex
+CREATE INDEX "Record_tableId_idx" ON "Record"("tableId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Cell_recordId_fieldId_key" ON "Cell"("recordId", "fieldId");
+
+-- CreateIndex
+CREATE INDEX "Cell_recordId_idx" ON "Cell"("recordId");
+
+-- CreateIndex
+CREATE INDEX "Cell_fieldId_idx" ON "Cell"("fieldId");
+
+-- CreateIndex
+CREATE INDEX "View_tableId_idx" ON "View"("tableId");
+
+-- AddForeignKey
+ALTER TABLE "View" ADD CONSTRAINT "View_tableId_fkey" FOREIGN KEY ("tableId") REFERENCES "AirtableTable"("id") ON DELETE CASCADE ON UPDATE CASCADE;

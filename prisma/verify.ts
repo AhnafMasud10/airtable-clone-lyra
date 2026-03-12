@@ -23,43 +23,43 @@ type CheckResult = {
 };
 
 async function runChecks(): Promise<CheckResult[]> {
-  const [users, workspaces, bases, tables, fields, records, cells] =
-    await Promise.all([
-      db.user.count(),
-      db.workspace.count(),
-      db.base.count(),
-      db.airtableTable.count(),
-      db.field.count(),
-      db.record.count(),
-      db.cell.count(),
-    ]);
+  const [users, bases, tables, views, fields, records, cells] = await Promise.all([
+    db.user.count(),
+    db.base.count(),
+    db.table.count(),
+    db.view.count(),
+    db.field.count(),
+    db.record.count(),
+    db.cell.count(),
+  ]);
 
   const [
-    orphanWorkspaces,
     orphanBases,
     orphanTables,
+    orphanViews,
     orphanFields,
     orphanRecords,
     orphanCellsByRecord,
     orphanCellsByField,
+    invalidCellJoins,
   ] = await Promise.all([
     db.$queryRaw<Array<{ count: number }>>`
       SELECT CAST(COUNT(*) AS INTEGER) AS count
-      FROM "Workspace" w
-      LEFT JOIN "User" u ON u.id = w."ownerId"
-      WHERE u.id IS NULL
-    `,
-    db.$queryRaw<Array<{ count: number }>>`
-      SELECT CAST(COUNT(*) AS INTEGER) AS count
       FROM "Base" b
-      LEFT JOIN "Workspace" w ON w.id = b."workspaceId"
-      WHERE w.id IS NULL
+      LEFT JOIN "User" u ON u.id = b."ownerId"
+      WHERE u.id IS NULL
     `,
     db.$queryRaw<Array<{ count: number }>>`
       SELECT CAST(COUNT(*) AS INTEGER) AS count
       FROM "AirtableTable" t
       LEFT JOIN "Base" b ON b.id = t."baseId"
       WHERE b.id IS NULL
+    `,
+    db.$queryRaw<Array<{ count: number }>>`
+      SELECT CAST(COUNT(*) AS INTEGER) AS count
+      FROM "View" v
+      LEFT JOIN "AirtableTable" t ON t.id = v."tableId"
+      WHERE t.id IS NULL
     `,
     db.$queryRaw<Array<{ count: number }>>`
       SELECT CAST(COUNT(*) AS INTEGER) AS count
@@ -85,29 +85,32 @@ async function runChecks(): Promise<CheckResult[]> {
       LEFT JOIN "Field" f ON f.id = c."fieldId"
       WHERE f.id IS NULL
     `,
+    db.$queryRaw<Array<{ count: number }>>`
+      SELECT CAST(COUNT(*) AS INTEGER) AS count
+      FROM "Cell" c
+      JOIN "Record" r ON r.id = c."recordId"
+      JOIN "Field" f ON f.id = c."fieldId"
+      WHERE r."tableId" <> f."tableId"
+    `,
   ]);
 
-  const orphanWorkspaceCount = orphanWorkspaces[0]?.count ?? 0;
   const orphanBaseCount = orphanBases[0]?.count ?? 0;
   const orphanTableCount = orphanTables[0]?.count ?? 0;
+  const orphanViewCount = orphanViews[0]?.count ?? 0;
   const orphanFieldCount = orphanFields[0]?.count ?? 0;
   const orphanRecordCount = orphanRecords[0]?.count ?? 0;
   const orphanCellRecordCount = orphanCellsByRecord[0]?.count ?? 0;
   const orphanCellFieldCount = orphanCellsByField[0]?.count ?? 0;
+  const invalidCellJoinCount = invalidCellJoins[0]?.count ?? 0;
 
   return [
     {
-      name: "Seeded users exist",
-      pass: users > 0,
-      details: `users=${users}`,
+      name: "Seeded users and bases exist",
+      pass: users > 0 && bases > 0,
+      details: `users=${users}, bases=${bases}`,
     },
     {
-      name: "Every workspace has an owner",
-      pass: orphanWorkspaceCount === 0,
-      details: `orphans=${orphanWorkspaceCount}`,
-    },
-    {
-      name: "Every base belongs to a workspace",
+      name: "Every base belongs to a user",
       pass: orphanBaseCount === 0,
       details: `orphans=${orphanBaseCount}`,
     },
@@ -115,6 +118,11 @@ async function runChecks(): Promise<CheckResult[]> {
       name: "Every table belongs to a base",
       pass: orphanTableCount === 0,
       details: `orphans=${orphanTableCount}`,
+    },
+    {
+      name: "Every view belongs to a table",
+      pass: orphanViewCount === 0,
+      details: `orphans=${orphanViewCount}`,
     },
     {
       name: "Every field belongs to a table",
@@ -127,19 +135,22 @@ async function runChecks(): Promise<CheckResult[]> {
       details: `orphans=${orphanRecordCount}`,
     },
     {
-      name: "Every cell references a record and a field",
-      pass: orphanCellRecordCount === 0 && orphanCellFieldCount === 0,
-      details: `record-orphans=${orphanCellRecordCount}, field-orphans=${orphanCellFieldCount}`,
+      name: "Every cell references valid row and column in same table",
+      pass:
+        orphanCellRecordCount === 0 &&
+        orphanCellFieldCount === 0 &&
+        invalidCellJoinCount === 0,
+      details: `record-orphans=${orphanCellRecordCount}, field-orphans=${orphanCellFieldCount}, cross-table-cells=${invalidCellJoinCount}`,
     },
     {
       name: "Basic hierarchy counts look sane",
       pass:
-        users <= workspaces &&
-        workspaces <= bases &&
+        users <= bases &&
         bases <= tables &&
+        tables <= views &&
         tables <= records &&
         records <= cells,
-      details: `users=${users}, workspaces=${workspaces}, bases=${bases}, tables=${tables}, fields=${fields}, records=${records}, cells=${cells}`,
+      details: `users=${users}, bases=${bases}, tables=${tables}, views=${views}, fields=${fields}, records=${records}, cells=${cells}`,
     },
   ];
 }

@@ -26,18 +26,28 @@ async function createTableWithRows(params: {
 }) {
   const { baseId, tableName, fieldNames, rows } = params;
 
-  const table = await db.airtableTable.create({
+  const table = await db.table.create({
     data: {
       name: tableName,
       baseId,
     },
   });
 
+  await db.view.create({
+    data: {
+      name: "Grid view",
+      type: "GRID",
+      tableId: table.id,
+    },
+  });
+
   const fields = await Promise.all(
-    fieldNames.map((fieldName) =>
+    fieldNames.map((fieldName, index) =>
       db.field.create({
         data: {
           name: fieldName,
+          type: "TEXT",
+          order: index,
           tableId: table.id,
         },
       }),
@@ -46,10 +56,11 @@ async function createTableWithRows(params: {
 
   const fieldByName = new Map(fields.map((field) => [field.name, field]));
 
-  for (const row of rows) {
+  for (const [rowIndex, row] of rows.entries()) {
     const record = await db.record.create({
       data: {
         tableId: table.id,
+        order: rowIndex,
       },
     });
 
@@ -77,12 +88,14 @@ async function main() {
   await db.cell.deleteMany();
   await db.record.deleteMany();
   await db.field.deleteMany();
-  await db.airtableTable.deleteMany();
+  await db.view.deleteMany();
+  await db.table.deleteMany();
   await db.base.deleteMany();
-  await db.workspace.deleteMany();
+  await db.account.deleteMany();
+  await db.session.deleteMany();
   await db.user.deleteMany();
 
-  const users = await Promise.all([
+  const [alice, bob] = await Promise.all([
     db.user.create({
       data: {
         name: "Alice Johnson",
@@ -97,114 +110,98 @@ async function main() {
     }),
   ]);
 
-  for (const user of users) {
-    const productWorkspace = await db.workspace.create({
-      data: {
-        name: `${user.name ?? "User"} Product Workspace`,
-        ownerId: user.id,
+  const productBase = await db.base.create({
+    data: {
+      name: "Product Planning",
+      ownerId: alice.id,
+    },
+  });
+
+  const crmBase = await db.base.create({
+    data: {
+      name: "CRM",
+      ownerId: alice.id,
+    },
+  });
+
+  const operationsBase = await db.base.create({
+    data: {
+      name: "Operations Tracker",
+      ownerId: bob.id,
+    },
+  });
+
+  await createTableWithRows({
+    baseId: productBase.id,
+    tableName: "Features",
+    fieldNames: ["Title", "Status", "Priority", "Owner"],
+    rows: [
+      {
+        Title: "Kanban View",
+        Status: "In Progress",
+        Priority: "High",
+        Owner: "Alice Johnson",
       },
-    });
-
-    const opsWorkspace = await db.workspace.create({
-      data: {
-        name: `${user.name ?? "User"} Operations Workspace`,
-        ownerId: user.id,
+      {
+        Title: "CSV Import",
+        Status: "Backlog",
+        Priority: "Medium",
+        Owner: "Bob Lee",
       },
-    });
-
-    const productBase = await db.base.create({
-      data: {
-        name: "Product Planning",
-        workspaceId: productWorkspace.id,
+      {
+        Title: "Activity Feed",
+        Status: "Done",
+        Priority: "Low",
+        Owner: "Maya Patel",
       },
-    });
+    ],
+  });
 
-    const crmBase = await db.base.create({
-      data: {
-        name: "CRM",
-        workspaceId: productWorkspace.id,
+  await createTableWithRows({
+    baseId: crmBase.id,
+    tableName: "Leads",
+    fieldNames: ["Name", "Email", "Company", "Stage"],
+    rows: [
+      {
+        Name: "Maya Patel",
+        Email: "maya@northstar.io",
+        Company: "Northstar",
+        Stage: "Qualified",
       },
-    });
-
-    const operationsBase = await db.base.create({
-      data: {
-        name: "Operations Tracker",
-        workspaceId: opsWorkspace.id,
+      {
+        Name: "Noah Kim",
+        Email: "noah@acme.co",
+        Company: "Acme",
+        Stage: "New",
       },
-    });
+      {
+        Name: "Zara Chen",
+        Email: "zara@betaapps.dev",
+        Company: "BetaApps",
+        Stage: "Proposal",
+      },
+    ],
+  });
 
-    await createTableWithRows({
-      baseId: productBase.id,
-      tableName: "Features",
-      fieldNames: ["Title", "Status", "Priority", "Owner"],
-      rows: [
-        {
-          Title: "Kanban View",
-          Status: "In Progress",
-          Priority: "High",
-          Owner: user.name ?? "Unknown",
-        },
-        {
-          Title: "CSV Import",
-          Status: "Backlog",
-          Priority: "Medium",
-          Owner: user.name ?? "Unknown",
-        },
-        {
-          Title: "Activity Feed",
-          Status: "Done",
-          Priority: "Low",
-          Owner: user.name ?? "Unknown",
-        },
-      ],
-    });
-
-    await createTableWithRows({
-      baseId: crmBase.id,
-      tableName: "Leads",
-      fieldNames: ["Name", "Email", "Company", "Stage"],
-      rows: [
-        {
-          Name: "Maya Patel",
-          Email: "maya@northstar.io",
-          Company: "Northstar",
-          Stage: "Qualified",
-        },
-        {
-          Name: "Noah Kim",
-          Email: "noah@acme.co",
-          Company: "Acme",
-          Stage: "New",
-        },
-        {
-          Name: "Zara Chen",
-          Email: "zara@betaapps.dev",
-          Company: "BetaApps",
-          Stage: "Proposal",
-        },
-      ],
-    });
-
-    await createTableWithRows({
-      baseId: operationsBase.id,
-      tableName: "Incidents",
-      fieldNames: ["Summary", "Severity", "State", "Assignee"],
-      rows: [
-        {
-          Summary: "API latency spike",
-          Severity: "P1",
-          State: "Monitoring",
-          Assignee: user.name ?? "Unknown",
-        },
-        {
-          Summary: "Web login timeout",
-          Severity: "P2",
-          State: "Investigating",
-          Assignee: user.name ?? "Unknown",
-        },
-      ],
-    });
-  }
+  await createTableWithRows({
+    baseId: operationsBase.id,
+    tableName: "Incidents",
+    fieldNames: ["Summary", "Severity", "State", "Assignee"],
+    rows: [
+      {
+        Summary: "API latency spike",
+        Severity: "P1",
+        State: "Monitoring",
+        Assignee: "Alice Johnson",
+      },
+      {
+        Summary: "Web login timeout",
+        Severity: "P2",
+        State: "Investigating",
+        Assignee: "Bob Lee",
+      },
+    ],
+  });
 
   console.log("Seed completed successfully.");
 }

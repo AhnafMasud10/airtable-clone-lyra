@@ -13,60 +13,153 @@ model User {
   email     String      @unique
   createdAt DateTime    @default(now())
 
-  workspaces Workspace[]
+  accounts Account[]
+  sessions Session[]
+  bases    Base[]
 }
 
-model Workspace {
-  id      String @id @default(cuid())
-  name    String
-  ownerId String
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
 
-  owner User   @relation(fields: [ownerId], references: [id])
-  bases Base[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([sessionToken])
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
 }
 
 model Base {
-  id          String @id @default(cuid())
-  name        String
-  workspaceId String
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  workspace Workspace      @relation(fields: [workspaceId], references: [id])
-  tables    AirtableTable[]
+  owner  User    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  tables Table[]
+
+  @@index([ownerId])
 }
 
-model AirtableTable {
-  id     String @id @default(cuid())
-  name   String
-  baseId String
+model Table {
+  id        String   @id @default(cuid())
+  name      String
+  baseId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  base    Base     @relation(fields: [baseId], references: [id])
+  base    Base     @relation(fields: [baseId], references: [id], onDelete: Cascade)
+  views   View[]
   fields  Field[]
   records Record[]
+
+  @@index([baseId])
+  @@map("AirtableTable")
+}
+
+enum ViewType {
+  GRID
+  KANBAN
+  CALENDAR
+  GALLERY
+  FORM
+}
+
+model View {
+  id        String   @id @default(cuid())
+  name      String
+  type      ViewType @default(GRID)
+  tableId   String
+  config    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  table Table @relation(fields: [tableId], references: [id], onDelete: Cascade)
+
+  @@index([tableId])
+}
+
+enum FieldType {
+  TEXT
+  LONG_TEXT
+  NUMBER
+  BOOLEAN
+  DATE
+  SINGLE_SELECT
+  MULTI_SELECT
 }
 
 model Field {
-  id      String @id @default(cuid())
-  name    String
-  tableId String
+  id        String    @id @default(cuid())
+  name      String
+  type      FieldType @default(TEXT)
+  tableId   String
+  order     Int       @default(0)
+  options   Json?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  table AirtableTable @relation(fields: [tableId], references: [id])
+  table Table  @relation(fields: [tableId], references: [id], onDelete: Cascade)
   cells Cell[]
+
+  @@index([tableId])
 }
 
 model Record {
-  id      String @id @default(cuid())
-  tableId String
+  id        String   @id @default(cuid())
+  tableId   String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  table AirtableTable @relation(fields: [tableId], references: [id])
+  table Table  @relation(fields: [tableId], references: [id], onDelete: Cascade)
   cells Cell[]
+
+  @@index([tableId])
+  @@index([tableId, order, id], map: "Record_tableId_order_id_idx")
 }
 
 model Cell {
-  id       String  @id @default(cuid())
+  id        String   @id @default(cuid())
   recordId String
   fieldId  String
   value    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  record Record @relation(fields: [recordId], references: [id])
-  field  Field  @relation(fields: [fieldId], references: [id])
+  record Record @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  field  Field  @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([recordId, fieldId])
+  @@index([recordId])
+  @@index([fieldId])
+  @@index([fieldId, value], map: "Cell_fieldId_value_idx")
 }
