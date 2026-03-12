@@ -26,6 +26,8 @@ type GridTableProps = Readonly<{
   onCancelEdit: () => void;
   onFetchNextPage: () => void;
   onRetry: () => void;
+  onAddField: () => void;
+  onAddRow: () => void;
 }>;
 
 export function GridTable({
@@ -43,6 +45,8 @@ export function GridTable({
   onCancelEdit,
   onFetchNextPage,
   onRetry,
+  onAddField,
+  onAddRow,
 }: GridTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const columnHelper = createColumnHelper<TableRowModel>();
@@ -138,12 +142,12 @@ export function GridTable({
           </div>
         ) : null}
         {isError ? (
-          <div className="p-4 text-sm text-[#8b1f1f]">
-            Failed to load row window.
+          <div className="flex items-center gap-2 p-4 text-sm text-[#8b1f1f]">
+            <span>Failed to load row window.</span>
             <button
               type="button"
               onClick={onRetry}
-              className="ml-2 rounded border border-[#d2d9e3] px-2 py-1 text-xs text-[#5e6978]"
+              className="rounded border border-[#d2d9e3] px-2 py-1 text-xs text-[#5e6978]"
             >
               Retry
             </button>
@@ -154,15 +158,13 @@ export function GridTable({
           {table.getHeaderGroups().map((headerGroup) => (
             <div
               key={headerGroup.id}
-              className="grid"
-              style={{
-                gridTemplateColumns: `repeat(${headerGroup.headers.length}, minmax(160px, 1fr))`,
-              }}
+              className="flex"
             >
               {headerGroup.headers.map((header) => (
                 <div
                   key={header.id}
-                  className="truncate border-r border-[#e6ebf2] px-3 py-1.5 text-xs font-medium text-[#4f5d70]"
+                  className="shrink-0 truncate border-r border-[#e6ebf2] px-3 py-1.5 text-xs font-medium text-[#4f5d70]"
+                  style={{ width: header.id === "__row" ? 66 : 180, height: 32, display: "flex", alignItems: "center" }}
                 >
                   {flexRender(
                     header.column.columnDef.header,
@@ -170,6 +172,19 @@ export function GridTable({
                   )}
                 </div>
               ))}
+              {/* Add field "+" button */}
+              <button
+                type="button"
+                onClick={onAddField}
+                className="flex shrink-0 items-center justify-center border-r border-[#e6ebf2] text-[#97a0af] hover:bg-[#edf0f5] hover:text-[#4f5d70]"
+                style={{ width: 44, height: 32 }}
+                title="Add field"
+                aria-label="add a field"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style={{ shapeRendering: "geometricPrecision" }}>
+                  <path d="M8 3a.5.5 0 0 1 .5.5V7.5H12a.5.5 0 0 1 0 1H8.5v4a.5.5 0 0 1-1 0V8.5H4a.5.5 0 0 1 0-1h3.5V3.5A.5.5 0 0 1 8 3Z" />
+                </svg>
+              </button>
             </div>
           ))}
         </div>
@@ -186,8 +201,8 @@ export function GridTable({
               return (
                 <div
                   key={`loader-${item.key}`}
-                  className="absolute right-0 left-0 border-b border-[#edf1f7] bg-white px-3 py-2 text-xs text-[#6d7887]"
-                  style={{ transform: `translateY(${item.start}px)` }}
+                  className="absolute flex border-b border-[#edf1f7] bg-white px-3 text-xs text-[#6d7887]"
+                  style={{ transform: `translateY(${item.start}px)`, height: 32, alignItems: "center" }}
                 >
                   {hasNextPage ? "Loading more..." : "End of rows"}
                 </div>
@@ -197,10 +212,10 @@ export function GridTable({
             return (
               <div
                 key={row.id}
-                className="absolute right-0 left-0 grid border-b border-[#edf1f7] bg-white hover:bg-[#fafbfd]"
+                className="absolute flex border-b border-[#edf1f7] bg-white hover:bg-[#fafbfd]"
                 style={{
                   transform: `translateY(${item.start}px)`,
-                  gridTemplateColumns: `repeat(${row.getVisibleCells().length}, minmax(160px, 1fr))`,
+                  height: 32,
                 }}
               >
                 {row.getVisibleCells().map((cell, cellIndex) => {
@@ -217,7 +232,8 @@ export function GridTable({
                     return (
                       <div
                         key={cell.id}
-                        className="border-r border-[#edf1f7] bg-[#f8fafc] px-3 py-1.5 text-xs text-[#607082]"
+                        className="flex shrink-0 items-center border-r border-[#edf1f7] bg-[#f8fafc] px-3 text-xs text-[#607082]"
+                        style={{ width: 66, height: 32 }}
                       >
                         {rawValue}
                       </div>
@@ -250,9 +266,26 @@ export function GridTable({
             );
           })}
         </div>
+
+        {/* Ghost "+" row to add a new record */}
+        <button
+          type="button"
+          onClick={onAddRow}
+          className="flex w-full items-center border-b border-[#edf1f7] bg-white text-[#97a0af] hover:bg-[#fafbfd] hover:text-[#4f5d70]"
+          style={{ height: 32 }}
+          title="Insert a new record"
+          aria-label="Insert new record in grid"
+        >
+          <div className="flex shrink-0 items-center justify-center" style={{ width: 66, height: 32 }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style={{ shapeRendering: "geometricPrecision" }}>
+              <path d="M8 3a.5.5 0 0 1 .5.5V7.5H12a.5.5 0 0 1 0 1H8.5v4a.5.5 0 0 1-1 0V8.5H4a.5.5 0 0 1 0-1h3.5V3.5A.5.5 0 0 1 8 3Z" />
+            </svg>
+          </div>
+        </button>
       </div>
 
-      <div className="border-t border-[#e2e5ea] bg-white px-3 py-1 text-xs text-[#607082]">
+      {/* Summary bar */}
+      <div className="shrink-0 border-t border-[#e2e5ea] bg-white px-3 py-1 text-xs text-[#607082]">
         {totalCount.toLocaleString()} records
       </div>
     </>

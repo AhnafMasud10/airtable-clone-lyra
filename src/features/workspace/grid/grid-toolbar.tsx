@@ -9,10 +9,6 @@ type GridToolbarProps = Readonly<{
   fields: GridField[];
   fieldsCount: number;
   selectedTableId: string | null;
-  onAddField: () => void;
-  onAddRow: () => void;
-  onBulkInsert: () => void;
-  isBulkInserting: boolean;
 }>;
 
 function ListIcon() {
@@ -77,10 +73,6 @@ export function GridToolbar({
   selectedTableName,
   globalSearch,
   onGlobalSearchChange,
-  onAddField,
-  onAddRow,
-  onBulkInsert,
-  isBulkInserting,
 }: GridToolbarProps) {
   return (
     <section
@@ -227,31 +219,6 @@ export function GridToolbar({
         </div>
       )}
 
-      {/* Quick action buttons (add field / add row / bulk) — kept as secondary toolbar-level actions */}
-      <div className="flex shrink-0 items-center gap-1 border-l border-black/10 px-2">
-        <button
-          type="button"
-          onClick={onAddField}
-          className="rounded px-2 py-1 text-[13px] text-[rgb(97,102,112)] hover:bg-[rgb(229,233,240)]"
-        >
-          + Field
-        </button>
-        <button
-          type="button"
-          onClick={onAddRow}
-          className="rounded px-2 py-1 text-[13px] text-[rgb(97,102,112)] hover:bg-[rgb(229,233,240)]"
-        >
-          + Row
-        </button>
-        <button
-          type="button"
-          disabled={isBulkInserting}
-          onClick={onBulkInsert}
-          className="rounded px-2 py-1 text-[11px] text-[rgb(97,102,112)] hover:bg-[rgb(229,233,240)] disabled:opacity-50"
-        >
-          {isBulkInserting ? "Adding..." : "+ 100k"}
-        </button>
-      </div>
     </section>
   );
 }

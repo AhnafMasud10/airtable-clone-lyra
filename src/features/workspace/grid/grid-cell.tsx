@@ -37,7 +37,7 @@ export const GridCell = memo(function GridCell({
 }: GridCellProps) {
   if (isEditing) {
     return (
-      <div className="border-r border-[#edf1f7] px-1 py-1">
+      <div className="shrink-0 border-r border-[#edf1f7]" style={{ width: 180, height: 32 }}>
         <input
           autoFocus
           value={editValue}
@@ -50,20 +50,20 @@ export const GridCell = memo(function GridCell({
               e.currentTarget.blur();
             }
           }}
-          className="h-6 w-full rounded border border-[#2a79ef] px-2 text-xs outline-none"
+          className="h-full w-full border-2 border-[#2a79ef] px-2 text-xs outline-none"
         />
       </div>
     );
   }
 
   return (
-    <div className="border-r border-[#edf1f7] px-1 py-1">
+    <div className="shrink-0 border-r border-[#edf1f7]" style={{ width: 180, height: 32 }}>
       <button
         type="button"
         data-cell={`${virtualRowIndex}-${cellIndex}`}
         onDoubleClick={() => onStartEdit(rowId, fieldId, value)}
         onKeyDown={(e) => onCellKeyDown(e, virtualRowIndex, cellIndex)}
-        className="h-6 w-full rounded px-2 text-left text-xs text-[#253044] hover:bg-[#f1f5fc] focus:ring-2 focus:ring-[#2a79ef] focus:outline-none"
+        className="flex h-full w-full items-center truncate px-2 text-left text-xs text-[#253044] hover:bg-[#f1f5fc] focus:ring-2 focus:ring-[#2a79ef] focus:outline-none"
       >
         {value}
       </button>

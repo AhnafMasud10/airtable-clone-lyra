@@ -415,10 +415,6 @@ export function BaseGridPageClient({
               fields={fields}
               fieldsCount={fields.length}
               selectedTableId={selectedTableId}
-              onAddField={handleAddField}
-              onAddRow={handleAddRow}
-              onBulkInsert={handleBulkInsert}
-              isBulkInserting={bulkInsertRows.isPending}
             />
 
             {tablesQuery.isError ? (
@@ -449,6 +445,8 @@ export function BaseGridPageClient({
               onCancelEdit={handleCancelEdit}
               onFetchNextPage={handleFetchNextPage}
               onRetry={handleRetry}
+              onAddField={handleAddField}
+              onAddRow={handleAddRow}
             />
           </main>
         </div>
