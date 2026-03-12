@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import type {
   GridField,
@@ -33,7 +32,6 @@ export function BaseGridPageClient({
   initialTableId,
   initialViewId,
 }: BaseGridPageClientProps) {
-  const router = useRouter();
   const utils = api.useUtils();
 
   const [selectedTableId, setSelectedTableId] = useState<string | null>(
@@ -72,30 +70,36 @@ export function BaseGridPageClient({
     { enabled: Boolean(selectedTableId) },
   );
 
-  const gridQuery = api.table.getGridWindow.useInfiniteQuery(
-    {
+  const gridInput = useMemo(
+    () => ({
       tableId: selectedTableId ?? "missing-table",
       limit: PAGE_SIZE,
       globalSearch,
       filters,
       sorts,
       hiddenFieldIds,
-    },
-    {
-      enabled: Boolean(selectedTableId),
-      initialCursor: 0,
-      getNextPageParam: (lastPage) => lastPage.nextCursor,
-    },
+    }),
+    [selectedTableId, globalSearch, filters, sorts, hiddenFieldIds],
   );
+
+  const gridQuery = api.table.getGridWindow.useInfiniteQuery(gridInput, {
+    enabled: Boolean(selectedTableId),
+    initialCursor: 0,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    placeholderData: (prev) => prev,
+  });
 
   // ── Mutations ────────────────────────────────────────────────────────
 
   const createTable = api.table.createWithDefaults.useMutation({
     onSuccess: async (created) => {
       await utils.table.listByBase.invalidate({ baseId });
-      router.push(`/base/${baseId}/table/${created.id}`);
       setSelectedTableId(created.id);
       setSelectedViewId(null);
+      setFilters([]);
+      setSorts([]);
+      setGlobalSearch("");
+      globalThis.history.replaceState(null, "", `/base/${baseId}/table/${created.id}`);
     },
   });
 
@@ -108,12 +112,14 @@ export function BaseGridPageClient({
 
   const createView = api.view.create.useMutation({
     onSuccess: async (view) => {
-      if (selectedTableId) {
-        router.push(`/base/${baseId}/table/${selectedTableId}/view/${view.id}`);
-      }
       setSelectedViewId(view.id);
       if (!selectedTableId) return;
       await utils.view.listByTable.invalidate({ tableId: selectedTableId });
+      globalThis.history.replaceState(
+        null,
+        "",
+        `/base/${baseId}/table/${selectedTableId}/view/${view.id}`,
+      );
     },
   });
 
@@ -134,15 +140,6 @@ export function BaseGridPageClient({
   const upsertCell = api.cell.upsert.useMutation({
     onMutate: async (input) => {
       if (!selectedTableId) return {};
-
-      const gridInput = {
-        tableId: selectedTableId,
-        limit: PAGE_SIZE,
-        globalSearch,
-        filters,
-        sorts,
-        hiddenFieldIds,
-      } as const;
 
       await utils.table.getGridWindow.cancel(gridInput);
       const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
@@ -187,27 +184,18 @@ export function BaseGridPageClient({
         };
       });
 
-      return { previousGrid, gridInput };
+      return { previousGrid };
     },
     onError: (_error, _input, context) => {
-      if (!context?.previousGrid || !context.gridInput) return;
+      if (!context?.previousGrid) return;
       utils.table.getGridWindow.setInfiniteData(
-        context.gridInput,
+        gridInput,
         context.previousGrid,
       );
     },
-    onSettled: async (_data, _error, _input, context) => {
+    onSettled: async () => {
       if (!selectedTableId) return;
-      await utils.table.getGridWindow.invalidate(
-        context?.gridInput ?? {
-          tableId: selectedTableId,
-          limit: PAGE_SIZE,
-          globalSearch,
-          filters,
-          sorts,
-          hiddenFieldIds,
-        },
-      );
+      await utils.table.getGridWindow.invalidate(gridInput);
     },
   });
 
@@ -253,13 +241,13 @@ export function BaseGridPageClient({
   }, []);
 
   const handleSelectTable = useCallback((tableId: string) => {
-    router.push(`/base/${baseId}/table/${tableId}`);
     setSelectedTableId(tableId);
     setSelectedViewId(null);
     setFilters([]);
     setSorts([]);
     setGlobalSearch("");
-  }, [baseId, router]);
+    globalThis.history.replaceState(null, "", `/base/${baseId}/table/${tableId}`);
+  }, [baseId]);
 
   const handleAddTable = useCallback(() => {
     const name = globalThis.prompt("New table name")?.trim();
@@ -282,11 +270,15 @@ export function BaseGridPageClient({
   const handleSelectView = useCallback(
     (view: ViewItem) => {
       if (!selectedTableId) return;
-      router.push(`/base/${baseId}/table/${selectedTableId}/view/${view.id}`);
       setSelectedViewId(view.id);
       applyViewConfig(view);
+      globalThis.history.replaceState(
+        null,
+        "",
+        `/base/${baseId}/table/${selectedTableId}/view/${view.id}`,
+      );
     },
-    [applyViewConfig, baseId, router, selectedTableId],
+    [applyViewConfig, baseId, selectedTableId],
   );
 
   const handleAddField = useCallback(() => {

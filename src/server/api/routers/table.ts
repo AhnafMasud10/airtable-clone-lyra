@@ -371,26 +371,31 @@ export const tableRouter = createTRPCRouter({
       const offset = input.cursor;
       const limitWithPeek = input.limit + 1;
 
-      const idRows = await ctx.db.$queryRaw<
-        Array<{ id: string; order: number }>
-      >(
-        Prisma.sql`
-          SELECT r.id, r."order"
-          FROM "Record" r
-          ${whereSql}
-          ${sortSql}
-          OFFSET ${offset}
-          LIMIT ${limitWithPeek}
-        `,
-      );
-
-      const totalRows = await ctx.db.$queryRaw<Array<{ count: number }>>(
-        Prisma.sql`
-          SELECT CAST(COUNT(*) AS INTEGER) AS count
-          FROM "Record" r
-          ${whereSql}
-        `,
-      );
+      const [idRows, totalRows, fields] = await Promise.all([
+        ctx.db.$queryRaw<Array<{ id: string; order: number }>>(
+          Prisma.sql`
+            SELECT r.id, r."order"
+            FROM "Record" r
+            ${whereSql}
+            ${sortSql}
+            OFFSET ${offset}
+            LIMIT ${limitWithPeek}
+          `,
+        ),
+        offset === 0
+          ? ctx.db.$queryRaw<Array<{ count: number }>>(
+              Prisma.sql`
+                SELECT CAST(COUNT(*) AS INTEGER) AS count
+                FROM "Record" r
+                ${whereSql}
+              `,
+            )
+          : Promise.resolve(null),
+        ctx.db.field.findMany({
+          where: { tableId: input.tableId },
+          orderBy: { order: "asc" },
+        }),
+      ]);
 
       const hasMore = idRows.length > input.limit;
       const pageRows = hasMore ? idRows.slice(0, input.limit) : idRows;
@@ -411,18 +416,13 @@ export const tableRouter = createTRPCRouter({
           Boolean(record),
         );
 
-      const fields = await ctx.db.field.findMany({
-        where: { tableId: input.tableId },
-        orderBy: { order: "asc" },
-      });
-
       return {
         rows: orderedRecords,
         fields: fields.filter(
           (field) => !input.hiddenFieldIds.includes(field.id),
         ),
         nextCursor: hasMore ? offset + input.limit : null,
-        total: totalRows[0]?.count ?? 0,
+        total: totalRows?.[0]?.count ?? 0,
       };
     }),
 });
