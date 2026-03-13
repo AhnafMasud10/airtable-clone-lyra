@@ -49,6 +49,7 @@ export function BaseGridPageClient({
     fieldId: string;
     value: string;
   } | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     setSelectedTableId(initialTableId ?? initialTables[0]?.id ?? null);
@@ -124,16 +125,112 @@ export function BaseGridPageClient({
   });
 
   const createField = api.field.create.useMutation({
-    onSuccess: async () => {
+    onMutate: async (input) => {
+      if (!selectedTableId) return {};
+
+      const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
+      void utils.table.getGridWindow.cancel(gridInput);
+
+      const optimisticField = {
+        id: `optimistic-field-${Date.now()}`,
+        name: input.name,
+        type: input.type ?? "TEXT",
+        order: input.order ?? 0,
+        tableId: selectedTableId,
+      };
+
+      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          pages: current.pages.map((page) => {
+            const newFields = [...page.fields, optimisticField];
+            const newRows = page.rows.map((row) => ({
+              ...row,
+              cells: [
+                ...row.cells,
+                {
+                  id: `optimistic-${row.id}-${optimisticField.id}`,
+                  recordId: row.id,
+                  fieldId: optimisticField.id,
+                  value: "",
+                },
+              ],
+            }));
+            return {
+              ...page,
+              fields: newFields,
+              rows: newRows,
+            };
+          }),
+        };
+      });
+
+      return { previousGrid };
+    },
+    onError: (_error, _input, context) => {
+      if (!context?.previousGrid) return;
+      utils.table.getGridWindow.setInfiniteData(
+        gridInput,
+        context.previousGrid,
+      );
+    },
+    onSettled: async () => {
       if (!selectedTableId) return;
-      await utils.table.getGridWindow.invalidate({ tableId: selectedTableId });
+      await utils.table.getGridWindow.invalidate(gridInput);
     },
   });
 
   const createRecord = api.record.create.useMutation({
-    onSuccess: async () => {
+    onMutate: async (input) => {
+      if (!selectedTableId) return {};
+
+      const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
+      void utils.table.getGridWindow.cancel(gridInput);
+
+      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
+        if (!current || current.pages.length === 0) return current;
+        const firstPage = current.pages[0]!;
+        const tempId = `optimistic-row-${Date.now()}`;
+        const optimisticRow = {
+          id: tempId,
+          order: input.order ?? 0,
+          tableId: selectedTableId,
+          cells: firstPage.fields.map((f) => ({
+            id: `optimistic-${tempId}-${f.id}`,
+            recordId: tempId,
+            fieldId: f.id,
+            value: null as string | null,
+          })),
+        };
+
+        const newRows = [...firstPage.rows, optimisticRow];
+        const newTotal = (firstPage.total ?? 0) + 1;
+        return {
+          ...current,
+          pages: [
+            {
+              ...firstPage,
+              rows: newRows,
+              total: newTotal,
+            },
+            ...current.pages.slice(1),
+          ],
+        };
+      });
+
+      return { previousGrid };
+    },
+    onError: (_error, _input, context) => {
+      if (!context?.previousGrid) return;
+      utils.table.getGridWindow.setInfiniteData(
+        gridInput,
+        context.previousGrid,
+      );
+    },
+    onSettled: async () => {
       if (!selectedTableId) return;
-      await utils.table.getGridWindow.invalidate({ tableId: selectedTableId });
+      await utils.table.getGridWindow.invalidate(gridInput);
     },
   });
 
@@ -141,8 +238,8 @@ export function BaseGridPageClient({
     onMutate: async (input) => {
       if (!selectedTableId) return {};
 
-      await utils.table.getGridWindow.cancel(gridInput);
       const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
+      void utils.table.getGridWindow.cancel(gridInput);
 
       utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
         if (!current) return current;
@@ -186,16 +283,41 @@ export function BaseGridPageClient({
 
       return { previousGrid };
     },
+    onSuccess: (serverCell) => {
+      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          pages: current.pages.map((page) => ({
+            ...page,
+            rows: page.rows.map((row) => {
+              if (row.id !== serverCell.recordId) return row;
+
+              const idx = row.cells.findIndex(
+                (c) => c.fieldId === serverCell.fieldId,
+              );
+              if (idx === -1) {
+                return {
+                  ...row,
+                  cells: [...row.cells, serverCell],
+                };
+              }
+
+              const next = [...row.cells];
+              next[idx] = serverCell;
+              return { ...row, cells: next };
+            }),
+          })),
+        };
+      });
+    },
     onError: (_error, _input, context) => {
       if (!context?.previousGrid) return;
       utils.table.getGridWindow.setInfiniteData(
         gridInput,
         context.previousGrid,
       );
-    },
-    onSettled: async () => {
-      if (!selectedTableId) return;
-      await utils.table.getGridWindow.invalidate(gridInput);
+      void utils.table.getGridWindow.invalidate(gridInput);
     },
   });
 
@@ -220,6 +342,8 @@ export function BaseGridPageClient({
     [rows],
   );
 
+  const selectedView =
+    viewsQuery.data?.find((v) => v.id === selectedViewId) ?? null;
   const selectedTableName =
     (tablesQuery.data ?? []).find((t) => t.id === selectedTableId)?.name ??
     "Untitled table";
@@ -387,60 +511,64 @@ export function BaseGridPageClient({
           isBulkInserting={bulkInsertRows.isPending}
         />
 
-        {/* ── Content area below tabs: sidebar + (toolbar + grid) ── */}
-        <div className="flex min-h-0 flex-1">
-          {/* Views sidebar (280px) */}
-          <ViewsSidebar
-            views={viewsQuery.data ?? []}
-            selectedViewId={selectedViewId}
-            onSelectView={handleSelectView}
-            onCreateView={handleCreateView}
+        {/* ── Content area: toolbar full width, then sidebar | grid ── */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          {/* Grid toolbar: spans full width (sidebar → right edge), includes collapse button */}
+          <GridToolbar
+            selectedTableName={selectedTableName}
+            globalSearch={globalSearch}
+            onGlobalSearchChange={setGlobalSearch}
+            fields={fields}
+            fieldsCount={fields.length}
+            selectedTableId={selectedTableId}
+            sidebarCollapsed={sidebarCollapsed}
+            onToggleSidebar={() => setSidebarCollapsed((c) => !c)}
           />
 
-          {/* ── Main content: toolbar + grid ── */}
-          <main className="relative flex min-w-0 flex-1 flex-col bg-[rgb(242,244,248)]">
-            {/* Toolbar (48px) */}
-            <GridToolbar
-              selectedTableName={selectedTableName}
-              globalSearch={globalSearch}
-              onGlobalSearchChange={setGlobalSearch}
-              fields={fields}
-              fieldsCount={fields.length}
-              selectedTableId={selectedTableId}
+          {/* View sidebar (collapsible) | Grid */}
+          <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+            <ViewsSidebar
+              views={viewsQuery.data ?? []}
+              selectedViewId={selectedViewId}
+              isCollapsed={sidebarCollapsed}
+              onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
+              onSelectView={handleSelectView}
+              onCreateView={handleCreateView}
             />
 
-            {tablesQuery.isError ? (
-              <div className="border-b border-[rgb(220,4,59)]/20 bg-[rgb(255,242,250)] px-4 py-3 text-[13px] text-[rgb(177,15,65)]">
-                Failed to load tables. Refresh and try again.
-              </div>
-            ) : null}
+            <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-white">
+              {tablesQuery.isError ? (
+                <div className="border-b border-[rgb(220,4,59)]/20 bg-[rgb(255,242,250)] px-4 py-3 text-[13px] text-[rgb(177,15,65)]">
+                  Failed to load tables. Refresh and try again.
+                </div>
+              ) : null}
 
-            {selectedTableId ? null : (
-              <div className="border-b border-black/10 bg-white px-6 py-4 text-[13px] text-[rgb(97,102,112)]">
-                Create a table to start editing rows and cells.
-              </div>
-            )}
+              {selectedTableId ? null : (
+                <div className="border-b border-black/10 bg-white px-6 py-4 text-[13px] text-[rgb(97,102,112)]">
+                  Create a table to start editing rows and cells.
+                </div>
+              )}
 
-            {/* Grid (fills remaining space) */}
-            <GridTable
-              fields={fields}
-              rowModels={rowModels}
-              hasNextPage={gridQuery.hasNextPage ?? false}
-              isFetchingNextPage={gridQuery.isFetchingNextPage}
-              isLoading={gridQuery.isLoading}
-              isError={gridQuery.isError}
-              totalCount={totalCount}
-              editingCell={editingCell}
-              onStartEdit={handleStartEdit}
-              onChangeEdit={handleChangeEdit}
-              onCommitEdit={handleCommitEdit}
-              onCancelEdit={handleCancelEdit}
-              onFetchNextPage={handleFetchNextPage}
-              onRetry={handleRetry}
-              onAddField={handleAddField}
-              onAddRow={handleAddRow}
-            />
-          </main>
+              <GridTable
+                fields={fields}
+                rowModels={rowModels}
+                hasNextPage={gridQuery.hasNextPage ?? false}
+                isFetchingNextPage={gridQuery.isFetchingNextPage}
+                isLoading={gridQuery.isLoading}
+                isError={gridQuery.isError}
+                totalCount={totalCount}
+                editingCell={editingCell}
+                onStartEdit={handleStartEdit}
+                onChangeEdit={handleChangeEdit}
+                onCommitEdit={handleCommitEdit}
+                onCancelEdit={handleCancelEdit}
+                onFetchNextPage={handleFetchNextPage}
+                onRetry={handleRetry}
+                onAddField={handleAddField}
+                onAddRow={handleAddRow}
+              />
+            </main>
+          </div>
         </div>
       </div>
     </div>

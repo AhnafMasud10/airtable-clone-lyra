@@ -134,7 +134,7 @@ export function GridTable({
     <>
       <div
         ref={parentRef}
-        className="min-h-0 flex-1 overflow-auto border-t border-[#d9dee7] bg-white"
+        className="min-h-0 flex-1 overflow-auto bg-white"
       >
         {isLoading ? (
           <div className="p-4 text-sm text-[#607082]">

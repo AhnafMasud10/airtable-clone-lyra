@@ -6,6 +6,8 @@ import type { ViewItem } from "./types";
 type ViewsSidebarProps = Readonly<{
   views: ViewItem[];
   selectedViewId: string | null;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
   onSelectView: (view: ViewItem) => void;
   onCreateView: () => void;
 }>;
@@ -20,12 +22,17 @@ function GridFeatureIcon() {
   );
 }
 
-function ListIcon() {
+function TimelineFeatureIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <path d="M2.5 4h11a.5.5 0 0 0 0-1h-11a.5.5 0 0 0 0 1Zm0 4.5h11a.5.5 0 0 0 0-1h-11a.5.5 0 0 0 0 1Zm0 4.5h11a.5.5 0 0 0 0-1h-11a.5.5 0 0 0 0 1Z" />
+    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <path d="M2 4h12v8H2z" fill="none" stroke="rgb(220, 4, 59)" strokeWidth="1.2" />
+      <path d="M2 8h12M6 4v8M10 4v8" stroke="rgb(220, 4, 59)" strokeWidth="1.2" fill="none" />
     </svg>
   );
+}
+
+function viewIcon(type: string) {
+  return type === "TIMELINE" ? <TimelineFeatureIcon /> : <GridFeatureIcon />;
 }
 
 function PlusIcon() {
@@ -78,9 +85,13 @@ function DragHandleIcon() {
 const FONT_FAMILY =
   "-apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif";
 
+const SIDEBAR_WIDTH = 280;
+
 export function ViewsSidebar({
   views,
   selectedViewId,
+  isCollapsed,
+  onToggleCollapse,
   onSelectView,
   onCreateView,
 }: ViewsSidebarProps) {
@@ -94,16 +105,17 @@ export function ViewsSidebar({
 
   return (
     <nav
-      className="relative shrink-0 overflow-hidden"
+      className={`relative z-10 shrink-0 overflow-hidden bg-white ${isCollapsed ? "" : "border-r border-black/10"}`}
       style={{
-        width: 280,
-        transition: "width 200ms ease-in",
+        width: isCollapsed ? 0 : SIDEBAR_WIDTH,
+        minWidth: isCollapsed ? 0 : SIDEBAR_WIDTH,
+        transition: "width 200ms ease-in-out, min-width 200ms ease-in-out",
         fontFamily: FONT_FAMILY,
       }}
     >
       <div
-        className="flex h-full flex-col border-r border-black/10"
-        style={{ width: 280, padding: "5px 8px" }}
+        className="flex h-full flex-col"
+        style={{ width: SIDEBAR_WIDTH, padding: "8px 8px 8px 12px" }}
       >
         {/* Create new... button */}
         <div className="shrink-0 pb-2">
@@ -129,7 +141,7 @@ export function ViewsSidebar({
             <div className="relative flex w-full items-center">
               <input
                 type="text"
-                className="h-7 w-full rounded border border-black/10 bg-white pl-7 pr-8 text-[13px] outline-none focus:border-[rgb(22,110,225)] focus:ring-1 focus:ring-[rgb(22,110,225)]"
+                className="h-7 w-full rounded bg-white pl-7 pr-8 text-[13px] outline-none focus:ring-1 focus:ring-[rgb(22,110,225)]"
                 placeholder="Find a view"
                 aria-label="Find a view"
                 value={searchQuery}
@@ -170,7 +182,7 @@ export function ViewsSidebar({
                     <div className="flex items-center">
                       <div className="flex flex-1 items-center">
                         <span className="mr-2 flex shrink-0 items-center">
-                          <GridFeatureIcon />
+                          {viewIcon(view.type)}
                         </span>
                         <span
                           className="truncate"

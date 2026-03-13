@@ -9,6 +9,8 @@ type GridToolbarProps = Readonly<{
   fields: GridField[];
   fieldsCount: number;
   selectedTableId: string | null;
+  sidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
 }>;
 
 function ListIcon() {
@@ -73,24 +75,27 @@ export function GridToolbar({
   selectedTableName,
   globalSearch,
   onGlobalSearchChange,
+  sidebarCollapsed,
+  onToggleSidebar,
 }: GridToolbarProps) {
   return (
     <section
       aria-label="View configuration"
-      className="flex shrink-0 items-center gap-2 overflow-hidden border-b border-black/10 bg-white"
+      className="flex shrink-0 items-center gap-2 overflow-hidden border-b border-[#e6ebf2] bg-white"
       style={{
         height: 48,
-        minWidth: 600,
         fontFamily: FONT_FAMILY,
       }}
     >
       {/* Left section: sidebar toggle + view name */}
       <div className="flex flex-1 items-center pl-3 pr-2">
-        {/* Sidebar toggle */}
+        {/* Sidebar toggle (hamburger) */}
         <button
           type="button"
+          onClick={onToggleSidebar}
           className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded text-[rgb(97,102,112)] hover:bg-[rgb(229,233,240)]"
-          aria-label="Close sidebar"
+          aria-label={sidebarCollapsed ? "Open sidebar" : "Close sidebar"}
+          aria-pressed={!sidebarCollapsed}
         >
           <ListIcon />
         </button>

@@ -37,7 +37,10 @@ export const GridCell = memo(function GridCell({
 }: GridCellProps) {
   if (isEditing) {
     return (
-      <div className="shrink-0 border-r border-[#edf1f7]" style={{ width: 180, height: 32 }}>
+      <div
+        className="shrink-0 border-r border-[#edf1f7]"
+        style={{ width: 180, height: 32 }}
+      >
         <input
           autoFocus
           value={editValue}
@@ -57,7 +60,10 @@ export const GridCell = memo(function GridCell({
   }
 
   return (
-    <div className="shrink-0 border-r border-[#edf1f7]" style={{ width: 180, height: 32 }}>
+    <div
+      className="shrink-0 border-r border-[#edf1f7]"
+      style={{ width: 180, height: 32 }}
+    >
       <button
         type="button"
         data-cell={`${virtualRowIndex}-${cellIndex}`}
