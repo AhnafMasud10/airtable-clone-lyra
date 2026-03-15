@@ -1,16 +1,11 @@
-import { assertRecordAccess } from "~/server/api/auth-helpers";
-import {
-  createTRPCRouter,
-  protectedProcedure,
-} from "~/server/api/trpc";
+import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { CellForTableSchema, CellUpsertInputSchema } from "~/types/base-table";
 
 export const cellRouter = createTRPCRouter({
-  upsert: protectedProcedure
+  upsert: publicProcedure
     .input(CellUpsertInputSchema)
     .output(CellForTableSchema)
-    .mutation(async ({ ctx, input }) => {
-      await assertRecordAccess(ctx.db, input.recordId, ctx.session.user.id);
+    .mutation(({ ctx, input }) => {
       return ctx.db.cell.upsert({
         where: {
           recordId_fieldId: {

@@ -1,8 +1,4 @@
-import { assertTableAccess, assertViewAccess } from "~/server/api/auth-helpers";
-import {
-  createTRPCRouter,
-  protectedProcedure,
-} from "~/server/api/trpc";
+import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { Prisma } from "../../../../generated/prisma";
 import {
   ViewCreateInputSchema,
@@ -13,22 +9,20 @@ import {
 } from "~/types/base-table";
 
 export const viewRouter = createTRPCRouter({
-  listByTable: protectedProcedure
+  listByTable: publicProcedure
     .input(ViewListByTableInputSchema)
     .output(ViewForTableSchema.array())
-    .query(async ({ ctx, input }) => {
-      await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
+    .query(({ ctx, input }) => {
       return ctx.db.view.findMany({
         where: { tableId: input.tableId },
         orderBy: { createdAt: "asc" },
       });
     }),
 
-  create: protectedProcedure
+  create: publicProcedure
     .input(ViewCreateInputSchema)
     .output(ViewForTableSchema)
-    .mutation(async ({ ctx, input }) => {
-      await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
+    .mutation(({ ctx, input }) => {
       return ctx.db.view.create({
         data: {
           tableId: input.tableId,
@@ -38,11 +32,10 @@ export const viewRouter = createTRPCRouter({
       });
     }),
 
-  update: protectedProcedure
+  update: publicProcedure
     .input(ViewUpdateInputSchema)
     .output(ViewForTableSchema)
-    .mutation(async ({ ctx, input }) => {
-      await assertViewAccess(ctx.db, input.viewId, ctx.session.user.id);
+    .mutation(({ ctx, input }) => {
       let configData:
         | Prisma.InputJsonValue
         | typeof Prisma.JsonNull
@@ -67,11 +60,10 @@ export const viewRouter = createTRPCRouter({
       });
     }),
 
-  saveConfig: protectedProcedure
+  saveConfig: publicProcedure
     .input(ViewUpdateInputSchema.pick({ viewId: true, config: true }))
     .output(ViewForTableSchema)
-    .mutation(async ({ ctx, input }) => {
-      await assertViewAccess(ctx.db, input.viewId, ctx.session.user.id);
+    .mutation(({ ctx, input }) => {
       let configData:
         | Prisma.InputJsonValue
         | typeof Prisma.JsonNull
@@ -90,11 +82,10 @@ export const viewRouter = createTRPCRouter({
       });
     }),
 
-  delete: protectedProcedure
+  delete: publicProcedure
     .input(ViewDeleteInputSchema)
     .output(ViewDeleteInputSchema)
     .mutation(async ({ ctx, input }) => {
-      await assertViewAccess(ctx.db, input.viewId, ctx.session.user.id);
       await ctx.db.view.delete({
         where: { id: input.viewId },
       });
