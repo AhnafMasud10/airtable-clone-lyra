@@ -91,7 +91,7 @@ export function ViewsSidebar({
   views,
   selectedViewId,
   isCollapsed,
-  onToggleCollapse,
+  onToggleCollapse: _onToggleCollapse,
   onSelectView,
   onCreateView,
 }: ViewsSidebarProps) {

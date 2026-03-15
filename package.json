@@ -8,6 +8,7 @@
     "check": "next lint && tsc --noEmit",
     "db:generate": "prisma migrate dev",
     "db:migrate": "prisma migrate deploy",
+    "db:migrate-to-neon": "bash scripts/migrate-to-neon.sh",
     "db:push": "prisma db push",
     "db:seed": "bun prisma/seed.ts",
     "db:studio": "prisma studio",

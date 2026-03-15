@@ -1,4 +1,9 @@
-export function HomeTopbar() {
+import { auth } from "~/server/auth";
+import { UserMenu } from "~/features/auth/user-menu";
+
+export async function HomeTopbar() {
+  const session = await auth();
+
   return (
     <header className="flex h-[52px] items-center justify-between border-b border-[#e7eaf0] bg-white px-4">
       <button
@@ -30,9 +35,11 @@ export function HomeTopbar() {
         >
           🔔
         </button>
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#7d4dff] text-xs font-semibold text-white">
-          A
-        </div>
+        {session?.user ? (
+          <UserMenu user={session.user} />
+        ) : (
+          <div className="h-8 w-8 rounded-full bg-[#7d4dff] text-xs font-semibold text-white" />
+        )}
       </div>
     </header>
   );

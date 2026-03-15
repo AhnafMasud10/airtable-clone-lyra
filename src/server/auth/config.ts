@@ -42,7 +42,14 @@ export const authConfig = {
           }),
         ]
       : []),
-    DiscordProvider,
+    ...(env.AUTH_DISCORD_ID && env.AUTH_DISCORD_SECRET
+      ? [
+          DiscordProvider({
+            clientId: env.AUTH_DISCORD_ID,
+            clientSecret: env.AUTH_DISCORD_SECRET,
+          }),
+        ]
+      : []),
     /**
      * ...add more providers here.
      *

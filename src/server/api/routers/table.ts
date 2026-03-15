@@ -1,4 +1,8 @@
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import { assertBaseOwnership, assertTableAccess } from "~/server/api/auth-helpers";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+} from "~/server/api/trpc";
 import { faker } from "@faker-js/faker";
 import { Prisma } from "../../../../generated/prisma";
 import { z } from "zod";
@@ -164,10 +168,11 @@ function sampleValueForField(type: string) {
 }
 
 export const tableRouter = createTRPCRouter({
-  listByBase: publicProcedure
+  listByBase: protectedProcedure
     .input(TableListByBaseInputSchema)
     .output(TableSummarySchema.array())
-    .query(({ ctx, input }) => {
+    .query(async ({ ctx, input }) => {
+      await assertBaseOwnership(ctx.db, input.baseId, ctx.session.user.id);
       return ctx.db.table.findMany({
         where: { baseId: input.baseId },
         orderBy: { name: "asc" },
@@ -178,10 +183,11 @@ export const tableRouter = createTRPCRouter({
       });
     }),
 
-  getById: publicProcedure
+  getById: protectedProcedure
     .input(TableGetByIdInputSchema)
     .output(TableDetailSchema.nullable())
-    .query(({ ctx, input }) => {
+    .query(async ({ ctx, input }) => {
+      await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
       return ctx.db.table.findUnique({
         where: { id: input.tableId },
         include: {
@@ -201,10 +207,11 @@ export const tableRouter = createTRPCRouter({
       });
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(TableCreateInputSchema)
     .output(TableCreateOutputSchema)
     .mutation(async ({ ctx, input }) => {
+      await assertBaseOwnership(ctx.db, input.baseId, ctx.session.user.id);
       const createdTable = await ctx.db.table.create({
         data: {
           name: input.name,
@@ -223,10 +230,11 @@ export const tableRouter = createTRPCRouter({
       return createdTable;
     }),
 
-  createWithDefaults: publicProcedure
+  createWithDefaults: protectedProcedure
     .input(TableCreateWithDefaultsInputSchema)
     .output(TableCreateOutputSchema)
     .mutation(async ({ ctx, input }) => {
+      await assertBaseOwnership(ctx.db, input.baseId, ctx.session.user.id);
       return ctx.db.$transaction(async (tx) => {
         const createdTable = await tx.table.create({
           data: {
@@ -288,10 +296,11 @@ export const tableRouter = createTRPCRouter({
       });
     }),
 
-  bulkInsertRows: publicProcedure
+  bulkInsertRows: protectedProcedure
     .input(TableBulkInsertRowsInputSchema)
     .output(TableBulkInsertRowsOutputSchema)
     .mutation(async ({ ctx, input }) => {
+      await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
       const fields = await ctx.db.field.findMany({
         where: { tableId: input.tableId },
         orderBy: { order: "asc" },
@@ -340,10 +349,11 @@ export const tableRouter = createTRPCRouter({
       return { inserted };
     }),
 
-  getGridWindow: publicProcedure
+  getGridWindow: protectedProcedure
     .input(GridQueryInputSchema)
     .output(GridWindowOutputSchema)
     .query(async ({ ctx, input }) => {
+      await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
       const whereClauses: Prisma.Sql[] = [
         Prisma.sql`r."tableId" = ${input.tableId}`,
       ];

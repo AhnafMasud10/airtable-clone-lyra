@@ -342,8 +342,6 @@ export function BaseGridPageClient({
     [rows],
   );
 
-  const selectedView =
-    viewsQuery.data?.find((v) => v.id === selectedViewId) ?? null;
   const selectedTableName =
     (tablesQuery.data ?? []).find((t) => t.id === selectedTableId)?.name ??
     "Untitled table";

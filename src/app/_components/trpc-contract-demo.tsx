@@ -84,23 +84,23 @@ export function TrpcContractDemo() {
       <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-[#24292f] md:grid-cols-2 xl:grid-cols-5">
         <MetricCard
           label="Bases from api.base.list"
-          value={String((bases as BaseItem[] | undefined)?.length ?? 0)}
+          value={String(bases?.length ?? 0)}
         />
         <MetricCard
           label="Tables in first base"
-          value={String((tables as TableItem[] | undefined)?.length ?? 0)}
+          value={String(tables?.length ?? 0)}
         />
         <MetricCard
           label="Fields in first table"
-          value={String((fields as FieldItem[] | undefined)?.length ?? 0)}
+          value={String(fields?.length ?? 0)}
         />
         <MetricCard
           label="Views in first table"
-          value={String((views as ViewItem[] | undefined)?.length ?? 0)}
+          value={String(views?.length ?? 0)}
         />
         <MetricCard
           label="Records in first table"
-          value={String((records as RecordItem[] | undefined)?.length ?? 0)}
+          value={String(records?.length ?? 0)}
         />
       </div>
 
