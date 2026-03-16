@@ -374,10 +374,16 @@ export function BaseGridPageClient({
   }, [baseId]);
 
   const handleAddTable = useCallback(() => {
-    const name = globalThis.prompt("New table name")?.trim();
-    if (!name) return;
-    createTable.mutate({ baseId, name, defaultRowCount: 30 });
-  }, [baseId, createTable]);
+    const tables = tablesQuery.data ?? [];
+    const existingNames = new Set(tables.map((t) => t.name));
+    let name = "Table 1";
+    let i = 2;
+    while (existingNames.has(name)) {
+      name = `Table ${i}`;
+      i++;
+    }
+    createTable.mutate({ baseId, name, defaultRowCount: 0 });
+  }, [baseId, createTable, tablesQuery.data]);
 
   const handleBulkInsert = useCallback(() => {
     if (!selectedTableId) return;
@@ -416,9 +422,9 @@ export function BaseGridPageClient({
       tableId: selectedTableId,
       name,
       type: type === "NUMBER" ? "NUMBER" : "TEXT",
-      order: fields.length,
+      order: allFieldsFromGrid.length,
     });
-  }, [selectedTableId, createField, fields.length]);
+  }, [selectedTableId, createField, allFieldsFromGrid.length]);
 
   const handleAddRow = useCallback(() => {
     if (!selectedTableId) return;
@@ -542,6 +548,8 @@ export function BaseGridPageClient({
             onToggleField={handleToggleField}
             onHideAll={handleHideAll}
             onShowAll={handleShowAll}
+            filters={filters}
+            onFiltersChange={setFilters}
           />
 
           {/* View sidebar (collapsible) | Grid */}

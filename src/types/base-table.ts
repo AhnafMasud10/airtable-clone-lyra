@@ -60,7 +60,7 @@ export const TableCreateInputSchema = z.object({
 export const TableCreateWithDefaultsInputSchema = z.object({
   name: z.string().min(1).max(100),
   baseId: z.string().min(1),
-  defaultRowCount: z.number().int().min(1).max(5000).default(30),
+  defaultRowCount: z.number().int().min(0).max(5000).default(0),
 });
 
 export const TableCreateOutputSchema = z.object({
@@ -194,6 +194,7 @@ export const GridTextFilterSchema = z.object({
     "equals",
   ]),
   value: z.string().optional(),
+  conjunction: z.enum(["and", "or"]).default("and"),
 });
 
 export const GridNumberFilterSchema = z.object({
@@ -201,6 +202,7 @@ export const GridNumberFilterSchema = z.object({
   type: z.literal("number"),
   op: z.enum(["is_empty", "is_not_empty", "gt", "lt", "gte", "lte", "eq"]),
   value: z.number().optional(),
+  conjunction: z.enum(["and", "or"]).default("and"),
 });
 
 export const GridFilterSchema = z.union([

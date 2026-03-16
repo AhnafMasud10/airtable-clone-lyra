@@ -358,12 +358,23 @@ export const tableRouter = createTRPCRouter({
         `);
       }
 
+      const filterClauses: { sql: Prisma.Sql; conjunction: "and" | "or" }[] = [];
       for (const filter of input.filters) {
         const clause =
           filter.type === "text"
             ? textFilterSql(filter)
             : numberFilterSql(filter);
-        if (clause) whereClauses.push(clause);
+        if (clause) filterClauses.push({ sql: clause, conjunction: filter.conjunction ?? "and" });
+      }
+      if (filterClauses.length > 0) {
+        let combined = filterClauses[0]!.sql;
+        for (let i = 1; i < filterClauses.length; i++) {
+          const { sql, conjunction } = filterClauses[i]!;
+          combined = conjunction === "or"
+            ? Prisma.sql`(${combined}) OR (${sql})`
+            : Prisma.sql`(${combined}) AND (${sql})`;
+        }
+        whereClauses.push(Prisma.sql`(${combined})`);
       }
 
       const whereSql = Prisma.sql`WHERE ${Prisma.join(whereClauses, " AND ")}`;

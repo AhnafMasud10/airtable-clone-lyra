@@ -355,7 +355,7 @@ export function GridTable({
                       <IconDragHandle />
                     </div>
                     <span className="flex-1 text-center text-xs text-[#6d7887] group-hover:hidden">
-                      {row.original.order + 1}
+                      {item.index + 1}
                     </span>
                     <div className="hidden flex-1 items-center justify-center group-hover:flex">
                       <div className="h-[14px] w-[14px] rounded-sm border border-[#b2bac5] bg-white" />

@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { GridField } from "./types";
+import type { GridField, GridFilter } from "./types";
 import { HideFieldsPanel } from "./hide-fields-panel";
+import { FilterPanel } from "./filter-panel";
 
 type GridToolbarProps = Readonly<{
   selectedTableName: string;
@@ -18,6 +19,8 @@ type GridToolbarProps = Readonly<{
   onToggleField: (fieldId: string) => void;
   onHideAll: () => void;
   onShowAll: () => void;
+  filters: GridFilter[];
+  onFiltersChange: (filters: GridFilter[]) => void;
 }>;
 
 function ListIcon() {
@@ -89,9 +92,26 @@ export function GridToolbar({
   onToggleField,
   onHideAll,
   onShowAll,
+  filters,
+  onFiltersChange,
 }: GridToolbarProps) {
   const [showHidePanel, setShowHidePanel] = useState(false);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
   const hideButtonRef = useRef<HTMLButtonElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+
+  const hiddenCount = hiddenFieldIds.length;
+  const hiddenLabel = hiddenCount > 0
+    ? `${hiddenCount} hidden field${hiddenCount === 1 ? "" : "s"}`
+    : "Hide fields";
+
+  const isFilterComplete = (f: GridFilter) =>
+    f.op === "is_empty" || f.op === "is_not_empty" || (f.value !== undefined && String(f.value) !== "");
+  const activeFilterCount = filters.filter(isFilterComplete).length;
+  const filterLabel = activeFilterCount > 0
+    ? `${activeFilterCount} filter${activeFilterCount === 1 ? "" : "s"}`
+    : "Filter";
+  const filterActive = showFilterPanel || activeFilterCount > 0;
 
   return (
     <section
@@ -157,9 +177,7 @@ export function GridToolbar({
               <line x1="2" y1="14" x2="14" y2="2" stroke="currentColor" strokeWidth="1.5" />
             </svg>
             <div className="ml-1 max-w-24 truncate" style={{ fontSize: 13 }}>
-              {hiddenFieldIds.length > 0
-                ? `${hiddenFieldIds.length} hidden field${hiddenFieldIds.length === 1 ? "" : "s"}`
-                : "Hide fields"}
+              {hiddenLabel}
             </div>
           </button>
 
@@ -176,14 +194,29 @@ export function GridToolbar({
           )}
 
           {/* Filter */}
-          <ToolbarButton
-            icon={
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-                <path d="M2 4.5h12a.5.5 0 0 0 0-1H2a.5.5 0 0 0 0 1Zm2 4h8a.5.5 0 0 0 0-1H4a.5.5 0 0 0 0 1Zm2 4h4a.5.5 0 0 0 0-1H6a.5.5 0 0 0 0 1Z" />
-              </svg>
-            }
-            label="Filter"
-          />
+          <button
+            ref={filterButtonRef}
+            type="button"
+            onClick={() => setShowFilterPanel((v) => !v)}
+            className={`flex cursor-pointer items-center rounded px-2 py-1 hover:bg-[rgb(229,233,240)] ${filterActive ? "text-[rgb(22,110,225)]" : "text-[rgb(97,102,112)]"}`}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+              <path d="M2 4.5h12a.5.5 0 0 0 0-1H2a.5.5 0 0 0 0 1Zm2 4h8a.5.5 0 0 0 0-1H4a.5.5 0 0 0 0 1Zm2 4h4a.5.5 0 0 0 0-1H6a.5.5 0 0 0 0 1Z" />
+            </svg>
+            <div className="ml-1 max-w-24 truncate" style={{ fontSize: 13 }}>
+              {filterLabel}
+            </div>
+          </button>
+
+          {showFilterPanel && (
+            <FilterPanel
+              filters={filters}
+              onFiltersChange={onFiltersChange}
+              allFields={allFields}
+              onClose={() => setShowFilterPanel(false)}
+              anchorRef={filterButtonRef}
+            />
+          )}
 
           {/* Group */}
           <ToolbarButton
