@@ -322,7 +322,10 @@ export function BaseGridPageClient({
 
   // ── Derived data ─────────────────────────────────────────────────────
 
-  const allFieldsFromGrid: GridField[] = gridQuery.data?.pages[0]?.fields ?? [];
+  const allFieldsFromGrid: GridField[] = useMemo(
+    () => gridQuery.data?.pages[0]?.fields ?? [],
+    [gridQuery.data],
+  );
   const fields: GridField[] = allFieldsFromGrid.filter(
     (f) => !hiddenFieldIds.includes(f.id),
   );

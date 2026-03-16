@@ -38,7 +38,7 @@ function getOps(type: "text" | "number") {
   return type === "number" ? NUMBER_OPS : TEXT_OPS;
 }
 
-function isNoValueOp(op: string) {
+function isNoValueOp(op: string): op is "is_empty" | "is_not_empty" {
   return op === "is_empty" || op === "is_not_empty";
 }
 
@@ -104,9 +104,8 @@ function FilterRow({ filter, allFields, isFirst, onChange, onDelete }: FilterRow
 
   const handleOpSelect = (op: string) => {
     if (isNoValueOp(op)) {
-      const noValOp = op as "is_empty" | "is_not_empty";
-      if (filter.type === "text") onChange({ fieldId: filter.fieldId, type: "text", op: noValOp, conjunction });
-      else if (filter.type === "number") onChange({ fieldId: filter.fieldId, type: "number", op: noValOp, conjunction });
+      if (filter.type === "text") onChange({ fieldId: filter.fieldId, type: "text", op, conjunction });
+      else if (filter.type === "number") onChange({ fieldId: filter.fieldId, type: "number", op, conjunction });
     } else if (filter.type === "text") {
       onChange({ ...filter, op: op as "contains" | "not_contains" | "equals" });
     } else if (filter.type === "number") {

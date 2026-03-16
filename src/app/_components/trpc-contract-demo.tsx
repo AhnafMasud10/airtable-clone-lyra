@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { api, type RouterOutputs } from "~/trpc/react";
-
-type BaseItem = RouterOutputs["base"]["list"][number];
-type TableItem = RouterOutputs["table"]["listByBase"][number];
-type ViewItem = RouterOutputs["view"]["listByTable"][number];
-type FieldItem = RouterOutputs["field"]["listByTable"][number];
-type RecordItem = RouterOutputs["record"]["listByTable"][number];
+import { api } from "~/trpc/react";
 
 export function TrpcContractDemo() {
   const utils = api.useUtils();

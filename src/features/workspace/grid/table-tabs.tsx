@@ -92,8 +92,8 @@ export function TableTabs({
   selectedTableId,
   onSelectTable,
   onAddTable,
-  onBulkInsert,
-  isBulkInserting,
+  onBulkInsert: _onBulkInsert,
+  isBulkInserting: _isBulkInserting,
 }: TableTabsProps) {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const addButtonRef = useRef<HTMLButtonElement>(null);

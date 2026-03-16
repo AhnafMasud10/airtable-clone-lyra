@@ -3,7 +3,7 @@ import { faker } from "@faker-js/faker";
 import { Prisma } from "../../../../generated/prisma";
 import { z } from "zod";
 import {
-  GridFilterSchema,
+  type GridFilterSchema,
   GridQueryInputSchema,
   GridWindowOutputSchema,
   TableBulkInsertRowsInputSchema,
