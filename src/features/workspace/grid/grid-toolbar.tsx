@@ -1,6 +1,8 @@
 "use client";
 
+import { useRef, useState } from "react";
 import type { GridField } from "./types";
+import { HideFieldsPanel } from "./hide-fields-panel";
 
 type GridToolbarProps = Readonly<{
   selectedTableName: string;
@@ -11,6 +13,11 @@ type GridToolbarProps = Readonly<{
   selectedTableId: string | null;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
+  allFields: GridField[];
+  hiddenFieldIds: string[];
+  onToggleField: (fieldId: string) => void;
+  onHideAll: () => void;
+  onShowAll: () => void;
 }>;
 
 function ListIcon() {
@@ -77,7 +84,15 @@ export function GridToolbar({
   onGlobalSearchChange,
   sidebarCollapsed,
   onToggleSidebar,
+  allFields,
+  hiddenFieldIds,
+  onToggleField,
+  onHideAll,
+  onShowAll,
 }: GridToolbarProps) {
+  const [showHidePanel, setShowHidePanel] = useState(false);
+  const hideButtonRef = useRef<HTMLButtonElement>(null);
+
   return (
     <section
       aria-label="View configuration"
@@ -128,17 +143,37 @@ export function GridToolbar({
 
       {/* Right section: toolbar buttons */}
       <div className="flex flex-1 items-center justify-end pr-2" style={{ height: 48 }}>
-        <div className="flex items-center">
+        <div className="relative flex items-center">
+
           {/* Hide fields */}
-          <ToolbarButton
-            icon={
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-                <path d="M2.2 8.7c-.3-.4-.3-.9 0-1.3C3.5 5.4 5.6 4 8 4s4.5 1.4 5.8 3.3c.3.4.3 1 0 1.4C12.5 10.6 10.4 12 8 12s-4.5-1.4-5.8-3.3ZM8 10.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-                <line x1="2" y1="14" x2="14" y2="2" stroke="currentColor" strokeWidth="1.5" />
-              </svg>
-            }
-            label="Hide fields"
-          />
+          <button
+            ref={hideButtonRef}
+            type="button"
+            onClick={() => setShowHidePanel((v) => !v)}
+            className={`flex cursor-pointer items-center rounded px-2 py-1 hover:bg-[rgb(229,233,240)] ${showHidePanel || hiddenFieldIds.length > 0 ? "text-[rgb(22,110,225)]" : "text-[rgb(97,102,112)]"}`}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+              <path d="M2.2 8.7c-.3-.4-.3-.9 0-1.3C3.5 5.4 5.6 4 8 4s4.5 1.4 5.8 3.3c.3.4.3 1 0 1.4C12.5 10.6 10.4 12 8 12s-4.5-1.4-5.8-3.3ZM8 10.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+              <line x1="2" y1="14" x2="14" y2="2" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+            <div className="ml-1 max-w-24 truncate" style={{ fontSize: 13 }}>
+              {hiddenFieldIds.length > 0
+                ? `${hiddenFieldIds.length} hidden field${hiddenFieldIds.length === 1 ? "" : "s"}`
+                : "Hide fields"}
+            </div>
+          </button>
+
+          {showHidePanel && (
+            <HideFieldsPanel
+              allFields={allFields}
+              hiddenFieldIds={hiddenFieldIds}
+              onToggleField={onToggleField}
+              onHideAll={onHideAll}
+              onShowAll={onShowAll}
+              onClose={() => setShowHidePanel(false)}
+              anchorRef={hideButtonRef}
+            />
+          )}
 
           {/* Filter */}
           <ToolbarButton

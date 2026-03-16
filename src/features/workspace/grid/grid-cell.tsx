@@ -10,6 +10,7 @@ type GridCellProps = Readonly<{
   editValue: string;
   virtualRowIndex: number;
   cellIndex: number;
+  colWidth: number;
   onStartEdit: (rowId: string, fieldId: string, value: string) => void;
   onChangeEdit: (value: string) => void;
   onCommitEdit: () => void;
@@ -29,6 +30,7 @@ export const GridCell = memo(function GridCell({
   editValue,
   virtualRowIndex,
   cellIndex,
+  colWidth,
   onStartEdit,
   onChangeEdit,
   onCommitEdit,
@@ -39,7 +41,7 @@ export const GridCell = memo(function GridCell({
     return (
       <div
         className="shrink-0 border-r border-[#edf1f7]"
-        style={{ width: 180, height: 32 }}
+        style={{ width: colWidth, height: 32 }}
       >
         <input
           autoFocus
@@ -62,7 +64,7 @@ export const GridCell = memo(function GridCell({
   return (
     <div
       className="shrink-0 border-r border-[#edf1f7]"
-      style={{ width: 180, height: 32 }}
+      style={{ width: colWidth, height: 32 }}
     >
       <button
         type="button"

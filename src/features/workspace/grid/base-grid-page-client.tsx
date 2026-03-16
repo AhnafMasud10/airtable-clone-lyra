@@ -78,9 +78,8 @@ export function BaseGridPageClient({
       globalSearch,
       filters,
       sorts,
-      hiddenFieldIds,
     }),
-    [selectedTableId, globalSearch, filters, sorts, hiddenFieldIds],
+    [selectedTableId, globalSearch, filters, sorts],
   );
 
   const gridQuery = api.table.getGridWindow.useInfiniteQuery(gridInput, {
@@ -323,7 +322,10 @@ export function BaseGridPageClient({
 
   // ── Derived data ─────────────────────────────────────────────────────
 
-  const fields: GridField[] = gridQuery.data?.pages[0]?.fields ?? [];
+  const allFieldsFromGrid: GridField[] = gridQuery.data?.pages[0]?.fields ?? [];
+  const fields: GridField[] = allFieldsFromGrid.filter(
+    (f) => !hiddenFieldIds.includes(f.id),
+  );
   const rows = useMemo(
     () => gridQuery.data?.pages.flatMap((page) => page.rows) ?? [],
     [gridQuery.data],
@@ -456,6 +458,20 @@ export function BaseGridPageClient({
     gridQuery.refetch().catch(() => null);
   }, [gridQuery]);
 
+  const handleToggleField = useCallback((fieldId: string) => {
+    setHiddenFieldIds((prev) =>
+      prev.includes(fieldId) ? prev.filter((id) => id !== fieldId) : [...prev, fieldId],
+    );
+  }, []);
+
+  const handleHideAll = useCallback(() => {
+    setHiddenFieldIds(allFieldsFromGrid.map((f) => f.id));
+  }, [allFieldsFromGrid]);
+
+  const handleShowAll = useCallback(() => {
+    setHiddenFieldIds([]);
+  }, []);
+
   // ── Render ───────────────────────────────────────────────────────────
 
   return (
@@ -521,6 +537,11 @@ export function BaseGridPageClient({
             selectedTableId={selectedTableId}
             sidebarCollapsed={sidebarCollapsed}
             onToggleSidebar={() => setSidebarCollapsed((c) => !c)}
+            allFields={allFieldsFromGrid}
+            hiddenFieldIds={hiddenFieldIds}
+            onToggleField={handleToggleField}
+            onHideAll={handleHideAll}
+            onShowAll={handleShowAll}
           />
 
           {/* View sidebar (collapsible) | Grid */}
