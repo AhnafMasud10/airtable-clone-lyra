@@ -16,6 +16,7 @@ import { TableTabs } from "./table-tabs";
 import { ViewsSidebar } from "./views-sidebar";
 import { GridToolbar } from "./grid-toolbar";
 import { GridTable } from "./grid-table";
+import { SelectionActionBar } from "./selection-action-bar";
 
 type BaseGridPageClientProps = Readonly<{
   baseId: string;
@@ -50,6 +51,7 @@ export function BaseGridPageClient({
     value: string;
   } | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setSelectedTableId(initialTableId ?? initialTables[0]?.id ?? null);
@@ -320,6 +322,37 @@ export function BaseGridPageClient({
     },
   });
 
+  const bulkDeleteRecords = api.record.bulkDelete.useMutation({
+    onMutate: async (input) => {
+      const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
+      void utils.table.getGridWindow.cancel(gridInput);
+
+      const idSet = new Set(input.recordIds);
+      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          pages: current.pages.map((page) => ({
+            ...page,
+            rows: page.rows.filter((row) => !idSet.has(row.id)),
+            total: page.total - input.recordIds.filter((id) => page.rows.some((r) => r.id === id)).length,
+          })),
+        };
+      });
+
+      return { previousGrid };
+    },
+    onError: (_error, _input, context) => {
+      if (!context?.previousGrid) return;
+      utils.table.getGridWindow.setInfiniteData(gridInput, context.previousGrid);
+    },
+    onSettled: async () => {
+      if (!selectedTableId) return;
+      await utils.table.getGridWindow.invalidate(gridInput);
+      setSelectedRowIds(new Set());
+    },
+  });
+
   // ── Derived data ─────────────────────────────────────────────────────
 
   const allFieldsFromGrid: GridField[] = useMemo(
@@ -459,6 +492,29 @@ export function BaseGridPageClient({
     setEditingCell(null);
   }, []);
 
+  const handleToggleRow = useCallback((rowId: string) => {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowId)) next.delete(rowId);
+      else next.add(rowId);
+      return next;
+    });
+  }, []);
+
+  const handleToggleAll = useCallback((allIds: string[]) => {
+    setSelectedRowIds((prev) => {
+      const allSelected = allIds.every((id) => prev.has(id));
+      if (allSelected) return new Set();
+      return new Set(allIds);
+    });
+  }, []);
+
+  const handleDeleteSelected = useCallback(() => {
+    const ids = Array.from(selectedRowIds);
+    if (ids.length === 0) return;
+    bulkDeleteRecords.mutate({ recordIds: ids });
+  }, [selectedRowIds, bulkDeleteRecords]);
+
   const handleFetchNextPage = useCallback(() => {
     gridQuery.fetchNextPage().catch(() => null);
   }, [gridQuery]);
@@ -588,6 +644,9 @@ export function BaseGridPageClient({
                 isError={gridQuery.isError}
                 totalCount={totalCount}
                 editingCell={editingCell}
+                selectedRowIds={selectedRowIds}
+                onToggleRow={handleToggleRow}
+                onToggleAll={handleToggleAll}
                 onStartEdit={handleStartEdit}
                 onChangeEdit={handleChangeEdit}
                 onCommitEdit={handleCommitEdit}
@@ -596,6 +655,11 @@ export function BaseGridPageClient({
                 onRetry={handleRetry}
                 onAddField={handleAddField}
                 onAddRow={handleAddRow}
+              />
+              <SelectionActionBar
+                selectedCount={selectedRowIds.size}
+                onDelete={handleDeleteSelected}
+                isDeleting={bulkDeleteRecords.isPending}
               />
             </main>
           </div>

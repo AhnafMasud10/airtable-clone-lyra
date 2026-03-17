@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import {
   RecordCreateInputSchema,
@@ -50,5 +51,18 @@ export const recordRouter = createTRPCRouter({
       });
 
       return { recordId: input.recordId };
+    }),
+
+  bulkDelete: publicProcedure
+    .input(z.object({ recordIds: z.array(z.string().min(1)).min(1) }))
+    .output(z.object({ deletedCount: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.cell.deleteMany({
+        where: { recordId: { in: input.recordIds } },
+      });
+      const result = await ctx.db.record.deleteMany({
+        where: { id: { in: input.recordIds } },
+      });
+      return { deletedCount: result.count };
     }),
 });

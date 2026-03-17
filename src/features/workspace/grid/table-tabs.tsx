@@ -115,25 +115,38 @@ export function TableTabs({
         className="flex min-w-0 flex-1 items-end overflow-x-auto"
         style={{
           scrollbarWidth: "none",
-          paddingLeft: "2px",
           clipPath: "inset(-3px 0px 0px)",
         }}
       >
         <nav className="flex flex-none" style={{ height: "32px" }}>
-          {tables.map((tableItem) => {
+          {tables.map((tableItem, idx) => {
             const isActive = selectedTableId === tableItem.id;
+            const showDivider = idx > 0;
             return (
               <div
                 key={tableItem.id}
-                className="flex"
+                className="flex items-center"
                 style={{ height: "32px" }}
               >
+                {showDivider && (
+                  <div
+                    style={{
+                      width: "1px",
+                      height: "12px",
+                      flexShrink: 0,
+                      backgroundColor: "rgba(64, 124, 74, 0.2)",
+                    }}
+                  />
+                )}
                 <div
                   className="flex flex-none items-center"
                   style={{
-                    borderRadius: isActive ? "3px 3px 0 0" : "0 3px 0 0",
-                    backgroundColor: isActive ? "white" : LIGHT_BASE,
+                    height: "32px",
+                    borderRadius: isActive ? "3px 3px 0 0" : undefined,
+                    backgroundColor: isActive ? "white" : "transparent",
                     boxShadow: isActive ? SHADOW_LOW : "none",
+                    position: "relative",
+                    zIndex: isActive ? 2 : 1,
                   }}
                 >
                   <button
@@ -188,20 +201,20 @@ export function TableTabs({
             ref={addButtonRef}
             type="button"
             onClick={() => setAddMenuOpen((o) => !o)}
-            className="flex items-center gap-1 rounded px-1.5"
+            className="flex items-center justify-center rounded"
             style={{
               height: "32px",
-              fontSize: "13px",
-              fontWeight: 400,
+              width: "32px",
               color: GREEN_DUSTY,
-              backgroundColor: addMenuOpen ? "rgba(64, 124, 74, 0.12)" : "transparent",
+              backgroundColor: addMenuOpen
+                ? "rgba(64, 124, 74, 0.12)"
+                : "transparent",
             }}
             aria-expanded={addMenuOpen}
             aria-haspopup="true"
             aria-label="Add or import table"
           >
             <PlusIcon />
-            <span>Add or import</span>
           </button>
 
           {addMenuOpen &&
@@ -299,7 +312,7 @@ function AddOrImportMenu({
         boxShadow: SHADOW_MENU,
       }}
     >
-      <ul role="menu" tabIndex={-1} className="list-none p-0 m-0">
+      <ul role="menu" tabIndex={-1} className="m-0 list-none p-0">
         {/* Add a blank table */}
         <li
           role="presentation"
@@ -316,7 +329,7 @@ function AddOrImportMenu({
             style={{ color: FG_DEFAULT }}
             aria-label="Start from scratch"
           >
-            <span className="truncate flex-auto">Start from scratch</span>
+            <span className="flex-auto truncate">Start from scratch</span>
           </button>
         </li>
 
@@ -341,7 +354,7 @@ function AddOrImportMenu({
             className="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-black/5"
             style={{ color: FG_DEFAULT }}
           >
-            <span className="truncate flex-auto">New table</span>
+            <span className="flex-auto truncate">New table</span>
           </button>
         </li>
         <li role="menuitem" tabIndex={-1}>
@@ -350,7 +363,7 @@ function AddOrImportMenu({
             className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-black/5"
             style={{ color: FG_DEFAULT }}
           >
-            <span className="truncate flex-auto">New table with web data</span>
+            <span className="flex-auto truncate">New table with web data</span>
             <span
               className="ml-1 flex-none rounded px-1.5 py-0.5 text-[10px] font-medium"
               style={{ backgroundColor: BETA_BG, color: BETA_TEXT }}
@@ -384,7 +397,7 @@ function AddOrImportMenu({
               aria-label={item.label}
             >
               <span className="flex-none text-base">{item.icon}</span>
-              <span className="truncate flex-auto">{item.label}</span>
+              <span className="flex-auto truncate">{item.label}</span>
               {item.badge && (
                 <span
                   className="ml-auto flex-none rounded px-1.5 py-0.5 text-[10px] font-medium"
@@ -403,7 +416,7 @@ function AddOrImportMenu({
             style={{ color: FG_DEFAULT }}
             aria-label="26 more sources"
           >
-            <span className="truncate flex-auto">26 more sources...</span>
+            <span className="flex-auto truncate">26 more sources...</span>
             <ChevronRightIcon />
           </button>
         </li>

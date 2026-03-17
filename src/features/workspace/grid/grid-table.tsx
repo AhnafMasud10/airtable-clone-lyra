@@ -6,7 +6,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { type KeyboardEvent, type UIEvent, useCallback, useMemo, useRef } from "react";
+import { type KeyboardEvent, type UIEvent, useCallback, useMemo, useRef, useState } from "react";
 import type { GridField, TableRowModel } from "./types";
 import { GridCell } from "./grid-cell";
 
@@ -15,6 +15,7 @@ const LEFT_PANE_WIDTH = 84;
 const PRIMARY_COL_WIDTH = 181;
 const COL_WIDTH = 180;
 const ADD_FIELD_WIDTH = 44;
+const MIN_COL_WIDTH = 60;
 
 function IconPlus() {
   return (
@@ -58,18 +59,28 @@ function IconCheckBold() {
 }
 
 function FieldTypeIcon({ type }: Readonly<{ type: string }>) {
-  if (type === "NUMBER") {
-    return (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-        <path d="M5.5 1a.5.5 0 0 1 .492.592L5.73 3H8a.5.5 0 0 1 0 1H5.564l-.5 3H7.5a.5.5 0 0 1 0 1H4.897l-.39 2.408a.5.5 0 1 1-.986-.16L3.864 8H2a.5.5 0 0 1 0-1h2.03l.5-3H3a.5.5 0 0 1 0-1h1.697l.31-1.908A.5.5 0 0 1 5.5 1Zm5 0a.5.5 0 0 1 .492.592L10.73 3H13a.5.5 0 0 1 0 1h-2.436l-.5 3H12.5a.5.5 0 0 1 0 1H9.897l-.39 2.408a.5.5 0 1 1-.986-.16L8.864 8H7a.5.5 0 0 1 0-1h2.03l.5-3H8a.5.5 0 0 1 0-1h1.697l.31-1.908A.5.5 0 0 1 10.5 1Z" />
-      </svg>
-    );
+  const props = { width: 16, height: 16, viewBox: "0 0 16 16", fill: "currentColor", className: "flex-none", style: { shapeRendering: "geometricPrecision" as const } };
+  switch (type) {
+    case "NUMBER":
+      return (<svg {...props}><path d="M5.5 1a.5.5 0 0 1 .492.592L5.73 3H8a.5.5 0 0 1 0 1H5.564l-.5 3H7.5a.5.5 0 0 1 0 1H4.897l-.39 2.408a.5.5 0 1 1-.986-.16L3.864 8H2a.5.5 0 0 1 0-1h2.03l.5-3H3a.5.5 0 0 1 0-1h1.697l.31-1.908A.5.5 0 0 1 5.5 1Zm5 0a.5.5 0 0 1 .492.592L10.73 3H13a.5.5 0 0 1 0 1h-2.436l-.5 3H12.5a.5.5 0 0 1 0 1H9.897l-.39 2.408a.5.5 0 1 1-.986-.16L8.864 8H7a.5.5 0 0 1 0-1h2.03l.5-3H8a.5.5 0 0 1 0-1h1.697l.31-1.908A.5.5 0 0 1 10.5 1Z" /></svg>);
+    case "LONG_TEXT":
+      return (<svg {...props}><path d="M2 4a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 4Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 7Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 10Zm0 3a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 2 13Z" /></svg>);
+    case "USER":
+    case "COLLABORATOR":
+      return (<svg {...props}><path d="M8 7a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm0 1a4 4 0 0 0-4 4 1 1 0 0 0 1 1h6a1 1 0 0 0 1-1 4 4 0 0 0-4-4Z" /></svg>);
+    case "SELECT":
+    case "SINGLE_SELECT":
+      return (<svg {...props}><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1ZM5.22 6.22a.75.75 0 0 1 1.06 0L8 7.94l1.72-1.72a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0L5.22 7.28a.75.75 0 0 1 0-1.06Z" /></svg>);
+    case "ATTACHMENT":
+    case "MULTIPLE_ATTACHMENT":
+      return (<svg {...props}><path d="M3.5 2A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14h9a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 12.5 2h-9ZM7 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-5ZM5 7.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-3Zm4-1a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-4Z" /></svg>);
+    case "DATE":
+      return (<svg {...props}><path d="M4.5 1a.5.5 0 0 1 .5.5V3h6V1.5a.5.5 0 0 1 1 0V3h1.5A1.5 1.5 0 0 1 15 4.5v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 13.5v-9A1.5 1.5 0 0 1 2.5 3H4V1.5a.5.5 0 0 1 .5-.5ZM2.5 4a.5.5 0 0 0-.5.5V6h12V4.5a.5.5 0 0 0-.5-.5h-11ZM14 7H2v6.5a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5V7Z" /></svg>);
+    case "AI_TEXT":
+      return (<svg {...props}><path d="M2 4a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 4Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 7Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 10Zm0 3a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 2 13Z" /><circle cx="13" cy="3" r="2" fill="#7c3aed" /></svg>);
+    default: // TEXT / single line text
+      return (<svg {...props}><path d="M2.5 3A.5.5 0 0 1 3 2.5h10a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H8.5V13a.5.5 0 0 1-1 0V4.5H3a.5.5 0 0 1-.5-.5V3Z" /></svg>);
   }
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <path d="M2.5 3A.5.5 0 0 1 3 2.5h10a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H8.5V13a.5.5 0 0 1-1 0V4.5H3a.5.5 0 0 1-.5-.5V3Z" />
-    </svg>
-  );
 }
 
 type GridTableProps = Readonly<{
@@ -81,6 +92,9 @@ type GridTableProps = Readonly<{
   isError: boolean;
   totalCount: number;
   editingCell: { rowId: string; fieldId: string; value: string } | null;
+  selectedRowIds: Set<string>;
+  onToggleRow: (rowId: string) => void;
+  onToggleAll: (allIds: string[]) => void;
   onStartEdit: (rowId: string, fieldId: string, value: string) => void;
   onChangeEdit: (value: string) => void;
   onCommitEdit: () => void;
@@ -100,6 +114,9 @@ export function GridTable({
   isError,
   totalCount,
   editingCell,
+  selectedRowIds,
+  onToggleRow,
+  onToggleAll,
   onStartEdit,
   onChangeEdit,
   onCommitEdit,
@@ -111,6 +128,38 @@ export function GridTable({
 }: GridTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const columnHelper = createColumnHelper<TableRowModel>();
+
+  // Column widths: fieldId -> width in px (overrides defaults)
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const resizeRef = useRef<{ fieldId: string; startX: number; startWidth: number } | null>(null);
+
+  const getColumnWidth = useCallback(
+    (fieldId: string, index: number) =>
+      columnWidths[fieldId] ?? (index === 0 ? PRIMARY_COL_WIDTH : COL_WIDTH),
+    [columnWidths],
+  );
+
+  const handleResizeStart = useCallback((fieldId: string, startX: number, startWidth: number) => {
+    resizeRef.current = { fieldId, startX, startWidth };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    const onMove = (e: globalThis.MouseEvent) => {
+      const r = resizeRef.current;
+      if (!r) return;
+      const delta = e.clientX - r.startX;
+      const newWidth = Math.max(MIN_COL_WIDTH, r.startWidth + delta);
+      setColumnWidths((prev) => ({ ...prev, [r.fieldId]: newWidth }));
+    };
+    const onUp = () => {
+      resizeRef.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, []);
 
   const columns = useMemo(
     () =>
@@ -197,10 +246,8 @@ export function GridTable({
 
   // Width of just the columns area (no left pane) — used in the header scroller
   const totalColumnsWidth =
-    fields.reduce(
-      (acc, _, i) => acc + (i === 0 ? PRIMARY_COL_WIDTH : COL_WIDTH),
-      0,
-    ) + ADD_FIELD_WIDTH;
+    fields.reduce((acc, f, i) => acc + getColumnWidth(f.id, i), 0) +
+    ADD_FIELD_WIDTH;
 
   // Full row width (left pane + columns) — used in data rows
   const totalContentWidth = LEFT_PANE_WIDTH + totalColumnsWidth;
@@ -217,12 +264,26 @@ export function GridTable({
         >
           {/* Frozen left pane — always visible, not part of the scrolling header */}
           <div
-            className="flex shrink-0 items-center justify-center border-r border-[#d9dee7] bg-[#f2f4f8]"
+            className="flex shrink-0 items-center justify-center border-b border-r border-[#d2d9e3] bg-[#f2f4f8]"
             style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
           >
-            <div className="flex h-[14px] w-[14px] items-center justify-center rounded-sm border border-[#b2bac5] bg-white text-white">
-              <IconCheckBold />
-            </div>
+            {(() => {
+              const allIds = table.getRowModel().rows.map((r) => r.original.id);
+              const allSelected = allIds.length > 0 && allIds.every((id) => selectedRowIds.has(id));
+              const someSelected = !allSelected && allIds.some((id) => selectedRowIds.has(id));
+              return (
+                <button
+                  type="button"
+                  onClick={() => onToggleAll(allIds)}
+                  className="flex h-[14px] w-[14px] items-center justify-center rounded-sm border bg-white text-white focus:outline-none"
+                  style={{ borderColor: allSelected || someSelected ? "#2a79ef" : "#b2bac5", backgroundColor: allSelected ? "#2a79ef" : "white" }}
+                  aria-label="Select all rows"
+                >
+                  {allSelected && <IconCheckBold />}
+                  {someSelected && <div className="h-[2px] w-[8px] bg-[#2a79ef] rounded-sm" />}
+                </button>
+              );
+            })()}
           </div>
 
           {/* Column headers — overflow hidden, scrollLeft driven by data scroll */}
@@ -233,7 +294,7 @@ export function GridTable({
           >
             <div className="flex" style={{ minWidth: totalColumnsWidth }}>
               {fields.map((field, i) => {
-                const colWidth = i === 0 ? PRIMARY_COL_WIDTH : COL_WIDTH;
+                const colWidth = getColumnWidth(field.id, i);
                 return (
                   <div
                     key={field.id}
@@ -254,7 +315,17 @@ export function GridTable({
                     >
                       <IconChevronDown />
                     </button>
-                    <div className="absolute right-0 top-0 h-full w-[3px] cursor-col-resize opacity-0 hover:bg-[#2a79ef] hover:opacity-100 group-hover:opacity-30" />
+                    <button
+                      type="button"
+                      aria-label={`Resize ${field.name} column`}
+                      className="absolute right-0 top-0 z-20 h-full w-[6px] cursor-col-resize border-0 bg-transparent p-0 opacity-0 hover:bg-[#2a79ef] hover:opacity-100 group-hover:opacity-30"
+                      style={{ marginRight: -3 }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleResizeStart(field.id, e.clientX, colWidth);
+                      }}
+                    />
                   </div>
                 );
               })}
@@ -311,9 +382,9 @@ export function GridTable({
 
               if (!row) {
                 return (
-                  <div
-                    key={`loader-${item.key}`}
-                    className="absolute flex border-b border-[#edf1f7]"
+                <div
+                  key={`loader-${item.key}`}
+                  className="absolute flex border-b border-[#d2d9e3]"
                     style={{
                       transform: `translateY(${item.start}px)`,
                       height: ROW_HEIGHT,
@@ -322,7 +393,7 @@ export function GridTable({
                     }}
                   >
                     <div
-                      className="sticky left-0 z-10 flex shrink-0 items-center border-r border-[#edf1f7] bg-white"
+                      className="sticky left-0 z-10 flex shrink-0 items-center border-b border-r border-[#d2d9e3] bg-white"
                       style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
                     />
                     <div
@@ -335,30 +406,44 @@ export function GridTable({
                 );
               }
 
+              const isSelected = selectedRowIds.has(row.original.id);
               return (
                 <div
                   key={row.id}
-                  className="group absolute flex border-b border-[#edf1f7] bg-white hover:bg-[#fafbfd]"
+                  className="group absolute flex border-b border-[#d2d9e3]"
                   style={{
                     transform: `translateY(${item.start}px)`,
                     height: ROW_HEIGHT,
                     width: "100%",
                     minWidth: totalContentWidth,
+                    backgroundColor: isSelected ? "#ebf3ff" : "white",
                   }}
                 >
                   {/* Frozen left pane — drag handle / row number / checkbox / expand */}
                   <div
-                    className="sticky left-0 z-10 flex shrink-0 items-center border-r border-[#d9dee7] bg-white group-hover:bg-[#fafbfd]"
-                    style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
+                    className="sticky left-0 z-10 flex shrink-0 items-center border-b border-r border-[#d2d9e3]"
+                    style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT, backgroundColor: isSelected ? "#ebf3ff" : "white" }}
                   >
                     <div className="invisible flex w-4 shrink-0 items-center justify-center text-[#97a0af] group-hover:visible">
                       <IconDragHandle />
                     </div>
-                    <span className="flex-1 text-center text-xs text-[#6d7887] group-hover:hidden">
-                      {item.index + 1}
-                    </span>
-                    <div className="hidden flex-1 items-center justify-center group-hover:flex">
-                      <div className="h-[14px] w-[14px] rounded-sm border border-[#b2bac5] bg-white" />
+                    {/* Row number: hide on hover or when selected */}
+                    {!isSelected && (
+                      <span className="flex-1 text-center text-xs text-[#6d7887] group-hover:hidden">
+                        {item.index + 1}
+                      </span>
+                    )}
+                    {/* Checkbox: visible on hover or when selected */}
+                    <div className={`flex-1 items-center justify-center ${isSelected ? "flex" : "hidden group-hover:flex"}`}>
+                      <button
+                        type="button"
+                        onClick={() => onToggleRow(row.original.id)}
+                        className="flex h-[14px] w-[14px] items-center justify-center rounded-sm border text-white focus:outline-none"
+                        style={{ borderColor: isSelected ? "#2a79ef" : "#b2bac5", backgroundColor: isSelected ? "#2a79ef" : "white" }}
+                        aria-label={isSelected ? "Deselect row" : "Select row"}
+                      >
+                        {isSelected && <IconCheckBold />}
+                      </button>
                     </div>
                     <div className="invisible flex w-5 shrink-0 items-center justify-center text-[#97a0af] group-hover:visible">
                       <IconExpand />
@@ -377,8 +462,7 @@ export function GridTable({
                     const isEditing =
                       editingCell?.rowId === row.original.id &&
                       editingCell.fieldId === fieldId;
-                    const colWidth =
-                      cellIndex === 0 ? PRIMARY_COL_WIDTH : COL_WIDTH;
+                    const colWidth = getColumnWidth(fieldId, cellIndex);
 
                     return (
                       <GridCell
@@ -406,13 +490,13 @@ export function GridTable({
 
           {/* ── Ghost row — insert new record ── */}
           <div
-            className="flex border-b border-[#edf1f7] bg-white"
+            className="flex border-b border-[#d2d9e3] bg-white"
             style={{ width: "100%", minWidth: totalContentWidth, height: ROW_HEIGHT }}
           >
             <button
               type="button"
               onClick={onAddRow}
-              className="sticky left-0 z-10 flex shrink-0 items-center justify-center border-r border-[#d9dee7] bg-white text-[#97a0af] hover:text-[#4f5d70]"
+              className="sticky left-0 z-10 flex shrink-0 items-center justify-center border-b border-r border-[#d2d9e3] bg-white text-[#97a0af] hover:text-[#4f5d70]"
               style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
               title="You can also insert a new record anywhere by pressing Shift-Enter"
               aria-label="Insert new record in grid"

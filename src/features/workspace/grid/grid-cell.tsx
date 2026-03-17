@@ -40,7 +40,7 @@ export const GridCell = memo(function GridCell({
   if (isEditing) {
     return (
       <div
-        className="shrink-0 border-r border-[#edf1f7]"
+        className="shrink-0 border-r border-[#d2d9e3]"
         style={{ width: colWidth, height: 32 }}
       >
         <input
@@ -55,7 +55,7 @@ export const GridCell = memo(function GridCell({
               e.currentTarget.blur();
             }
           }}
-          className="h-full w-full border-2 border-[#2a79ef] px-2 text-xs outline-none"
+          className="h-full w-full border-2 border-[#2a79ef] px-[6px] text-[13px] leading-4 outline-none"
         />
       </div>
     );
@@ -63,7 +63,7 @@ export const GridCell = memo(function GridCell({
 
   return (
     <div
-      className="shrink-0 border-r border-[#edf1f7]"
+      className="shrink-0 border-r border-[#d2d9e3]"
       style={{ width: colWidth, height: 32 }}
     >
       <button
@@ -71,7 +71,7 @@ export const GridCell = memo(function GridCell({
         data-cell={`${virtualRowIndex}-${cellIndex}`}
         onDoubleClick={() => onStartEdit(rowId, fieldId, value)}
         onKeyDown={(e) => onCellKeyDown(e, virtualRowIndex, cellIndex)}
-        className="flex h-full w-full items-center truncate px-2 text-left text-xs text-[#253044] hover:bg-[#f1f5fc] focus:ring-2 focus:ring-[#2a79ef] focus:outline-none"
+        className="flex h-full w-full items-center truncate px-[6px] text-left text-[13px] leading-4 text-[#253044] hover:bg-[#f1f5fc] focus:ring-2 focus:ring-[#2a79ef] focus:outline-none"
       >
         {value}
       </button>

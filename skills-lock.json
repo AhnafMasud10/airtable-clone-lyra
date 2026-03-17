@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "steve": {
+      "source": "aaarnv/claude-skills",
+      "sourceType": "github",
+      "computedHash": "2b2c39c428132fa6982fab94e52ec94c662de9b21f612cb35c9a0285a5b61cfa"
+    }
+  }
+}
