@@ -1,4 +1,4 @@
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import {
   BaseCreateInputSchema,
   BaseCreateOutputSchema,
@@ -6,25 +6,31 @@ import {
   BaseSummarySchema,
 } from "~/types/base-table";
 
+import { assertBaseOwnership } from "../auth-helpers";
+
 export const baseRouter = createTRPCRouter({
-  list: publicProcedure.output(BaseSummarySchema.array()).query(({ ctx }) => {
-    return ctx.db.base.findMany({
-      include: {
-        tables: {
-          orderBy: { name: "asc" },
-          select: {
-            id: true,
-            name: true,
+  list: protectedProcedure
+    .output(BaseSummarySchema.array())
+    .query(({ ctx }) => {
+      return ctx.db.base.findMany({
+        where: { ownerId: ctx.session.user.id },
+        include: {
+          tables: {
+            orderBy: { name: "asc" },
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
-      orderBy: { name: "asc" },
-    });
-  }),
+        orderBy: { name: "asc" },
+      });
+    }),
 
-  getById: publicProcedure
+  getById: protectedProcedure
     .input(BaseGetByIdInputSchema)
-    .query(({ ctx, input }) => {
+    .query(async ({ ctx, input }) => {
+      await assertBaseOwnership(ctx.db, input.baseId, ctx.session.user.id);
       return ctx.db.base.findUnique({
         where: { id: input.baseId },
         select: {
@@ -46,33 +52,41 @@ export const baseRouter = createTRPCRouter({
       });
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(BaseCreateInputSchema)
     .output(BaseCreateOutputSchema)
     .mutation(async ({ ctx, input }) => {
-      const resolvedOwnerId =
-        input.ownerId ??
-        (
-          await ctx.db.user.findFirst({
-            orderBy: { createdAt: "asc" },
-            select: { id: true },
-          })
-        )?.id ??
-        (
-          await ctx.db.user.create({
-            data: {
-              name: "Demo User",
-              email: `demo-${Date.now()}@example.com`,
-            },
-            select: { id: true },
-          })
-        ).id;
+      return ctx.db.$transaction(async (tx) => {
+        const base = await tx.base.create({
+          data: {
+            name: input.name,
+            ownerId: ctx.session.user.id,
+          },
+        });
 
-      return ctx.db.base.create({
-        data: {
-          name: input.name,
-          ownerId: resolvedOwnerId,
-        },
+        const table = await tx.table.create({
+          data: {
+            name: "Untitled",
+            baseId: base.id,
+          },
+        });
+
+        await tx.view.create({
+          data: {
+            tableId: table.id,
+            name: "Grid view",
+            type: "GRID",
+          },
+        });
+
+        await tx.field.createMany({
+          data: [
+            { tableId: table.id, name: "Name", type: "TEXT", order: 0 },
+            { tableId: table.id, name: "Notes", type: "LONG_TEXT", order: 1 },
+          ],
+        });
+
+        return base;
       });
     }),
 });

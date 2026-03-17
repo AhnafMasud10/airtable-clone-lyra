@@ -14,7 +14,7 @@ export function BaseCard({ base, openedLabel, accentClass }: BaseCardProps) {
   return (
     <Link
       href={href}
-      className="flex min-h-[66px] rounded-lg border border-[#e2e6ed] bg-white p-3 transition hover:border-[#c9d6eb] hover:shadow-[0_1px_2px_rgba(0,0,0,0.04)] focus-visible:ring-2 focus-visible:ring-[#2a79ef] focus-visible:outline-none"
+      className="flex min-h-[66px] cursor-pointer rounded-lg border border-[#e2e6ed] bg-white p-3 transition hover:border-[#c9d6eb] hover:shadow-[0_1px_2px_rgba(0,0,0,0.04)] focus-visible:ring-2 focus-visible:ring-[#2a79ef] focus-visible:outline-none"
     >
       <div
         className={`mr-3 flex h-10 w-10 items-center justify-center rounded-md text-[28px] leading-none font-semibold text-white ${accentClass}`}

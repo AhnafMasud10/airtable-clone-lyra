@@ -1,4 +1,5 @@
 import { BaseCard } from "./base-card";
+import { CreateBaseButton } from "./create-base-button";
 import { getOpenedLabel, groupBasesForHome, type HomeBase } from "../types";
 
 const accentColors = ["bg-[#3f9150]", "bg-[#f0b400]", "bg-[#a76d10]"];
@@ -43,30 +44,15 @@ export function BasesSection({ bases }: BasesSectionProps) {
   return (
     <div className="mt-4">
       <div className="mb-2 flex items-center justify-between">
-        <button type="button" className="text-sm font-medium text-[#57606a]">
-          Opened anytime ▾
-        </button>
-        <div className="flex items-center gap-2 text-[#8893a2]">
-          <button
-            type="button"
-            aria-label="List layout"
-            className="rounded px-1 py-0.5 hover:bg-[#edf0f5]"
-          >
-            ☰
-          </button>
-          <button
-            type="button"
-            aria-label="Grid layout"
-            className="rounded px-1 py-0.5 hover:bg-[#edf0f5]"
-          >
-            ⊞
-          </button>
-        </div>
+        <span className="text-sm font-medium text-[#57606a]">
+          Your bases
+        </span>
+        <CreateBaseButton compact />
       </div>
 
-      <SectionGroup title="Today" bases={grouped.today} group="today" />
+      <SectionGroup title="Recent" bases={grouped.today} group="today" />
       <SectionGroup
-        title="Past 7 days"
+        title="More"
         bases={grouped.past7Days}
         group="past7Days"
         offset={grouped.today.length}

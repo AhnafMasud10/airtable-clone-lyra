@@ -6,7 +6,14 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { type KeyboardEvent, type UIEvent, useCallback, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  type UIEvent,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { GridField, TableRowModel } from "./types";
 import { GridCell } from "./grid-cell";
 
@@ -19,7 +26,14 @@ const MIN_COL_WIDTH = 60;
 
 function IconPlus() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
       <path d="M8 3a.5.5 0 0 1 .5.5v4h4a.5.5 0 0 1 0 1h-4v4a.5.5 0 0 1-1 0v-4h-4a.5.5 0 0 1 0-1h4v-4A.5.5 0 0 1 8 3Z" />
     </svg>
   );
@@ -27,7 +41,14 @@ function IconPlus() {
 
 function IconChevronDown() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
       <path d="M3.22 5.72a.75.75 0 0 1 1.06 0L8 9.44l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L3.22 6.78a.75.75 0 0 1 0-1.06Z" />
     </svg>
   );
@@ -35,16 +56,34 @@ function IconChevronDown() {
 
 function IconDragHandle() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <circle cx="5" cy="4" r="1.1" /><circle cx="5" cy="8" r="1.1" /><circle cx="5" cy="12" r="1.1" />
-      <circle cx="11" cy="4" r="1.1" /><circle cx="11" cy="8" r="1.1" /><circle cx="11" cy="12" r="1.1" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <circle cx="5" cy="4" r="1.1" />
+      <circle cx="5" cy="8" r="1.1" />
+      <circle cx="5" cy="12" r="1.1" />
+      <circle cx="11" cy="4" r="1.1" />
+      <circle cx="11" cy="8" r="1.1" />
+      <circle cx="11" cy="12" r="1.1" />
     </svg>
   );
 }
 
 function IconExpand() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
       <path d="M2.5 3.5a1 1 0 0 1 1-1H6a.5.5 0 0 1 0 1H3.5V6a.5.5 0 0 1-1 0V3.5Zm7 0A.5.5 0 0 1 10 3h2.5a1 1 0 0 1 1 1V6.5a.5.5 0 0 1-1 0V4H10a.5.5 0 0 1-.5-.5ZM3 9.5a.5.5 0 0 1 .5.5v2h2a.5.5 0 0 1 0 1H3.5a1 1 0 0 1-1-1V10a.5.5 0 0 1 .5-.5Zm9.5 0a.5.5 0 0 1 .5.5v2.5a1 1 0 0 1-1 1H10a.5.5 0 0 1 0-1h2V10a.5.5 0 0 1 .5-.5Z" />
     </svg>
   );
@@ -52,34 +91,81 @@ function IconExpand() {
 
 function IconCheckBold() {
   return (
-    <svg width="9" height="9" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+    <svg
+      width="9"
+      height="9"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
       <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
     </svg>
   );
 }
 
 function FieldTypeIcon({ type }: Readonly<{ type: string }>) {
-  const props = { width: 16, height: 16, viewBox: "0 0 16 16", fill: "currentColor", className: "flex-none", style: { shapeRendering: "geometricPrecision" as const } };
+  const props = {
+    width: 16,
+    height: 16,
+    viewBox: "0 0 16 16",
+    fill: "currentColor",
+    className: "flex-none",
+    style: { shapeRendering: "geometricPrecision" as const },
+  };
   switch (type) {
     case "NUMBER":
-      return (<svg {...props}><path d="M5.5 1a.5.5 0 0 1 .492.592L5.73 3H8a.5.5 0 0 1 0 1H5.564l-.5 3H7.5a.5.5 0 0 1 0 1H4.897l-.39 2.408a.5.5 0 1 1-.986-.16L3.864 8H2a.5.5 0 0 1 0-1h2.03l.5-3H3a.5.5 0 0 1 0-1h1.697l.31-1.908A.5.5 0 0 1 5.5 1Zm5 0a.5.5 0 0 1 .492.592L10.73 3H13a.5.5 0 0 1 0 1h-2.436l-.5 3H12.5a.5.5 0 0 1 0 1H9.897l-.39 2.408a.5.5 0 1 1-.986-.16L8.864 8H7a.5.5 0 0 1 0-1h2.03l.5-3H8a.5.5 0 0 1 0-1h1.697l.31-1.908A.5.5 0 0 1 10.5 1Z" /></svg>);
+      return (
+        <svg {...props}>
+          <path d="M5.5 1a.5.5 0 0 1 .492.592L5.73 3H8a.5.5 0 0 1 0 1H5.564l-.5 3H7.5a.5.5 0 0 1 0 1H4.897l-.39 2.408a.5.5 0 1 1-.986-.16L3.864 8H2a.5.5 0 0 1 0-1h2.03l.5-3H3a.5.5 0 0 1 0-1h1.697l.31-1.908A.5.5 0 0 1 5.5 1Zm5 0a.5.5 0 0 1 .492.592L10.73 3H13a.5.5 0 0 1 0 1h-2.436l-.5 3H12.5a.5.5 0 0 1 0 1H9.897l-.39 2.408a.5.5 0 1 1-.986-.16L8.864 8H7a.5.5 0 0 1 0-1h2.03l.5-3H8a.5.5 0 0 1 0-1h1.697l.31-1.908A.5.5 0 0 1 10.5 1Z" />
+        </svg>
+      );
     case "LONG_TEXT":
-      return (<svg {...props}><path d="M2 4a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 4Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 7Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 10Zm0 3a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 2 13Z" /></svg>);
+      return (
+        <svg {...props}>
+          <path d="M2 4a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 4Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 7Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 10Zm0 3a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 2 13Z" />
+        </svg>
+      );
     case "USER":
     case "COLLABORATOR":
-      return (<svg {...props}><path d="M8 7a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm0 1a4 4 0 0 0-4 4 1 1 0 0 0 1 1h6a1 1 0 0 0 1-1 4 4 0 0 0-4-4Z" /></svg>);
+      return (
+        <svg {...props}>
+          <path d="M8 7a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm0 1a4 4 0 0 0-4 4 1 1 0 0 0 1 1h6a1 1 0 0 0 1-1 4 4 0 0 0-4-4Z" />
+        </svg>
+      );
     case "SELECT":
     case "SINGLE_SELECT":
-      return (<svg {...props}><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1ZM5.22 6.22a.75.75 0 0 1 1.06 0L8 7.94l1.72-1.72a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0L5.22 7.28a.75.75 0 0 1 0-1.06Z" /></svg>);
+      return (
+        <svg {...props}>
+          <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1ZM5.22 6.22a.75.75 0 0 1 1.06 0L8 7.94l1.72-1.72a.75.75 0 1 1 1.06 1.06l-2.25 2.25a.75.75 0 0 1-1.06 0L5.22 7.28a.75.75 0 0 1 0-1.06Z" />
+        </svg>
+      );
     case "ATTACHMENT":
     case "MULTIPLE_ATTACHMENT":
-      return (<svg {...props}><path d="M3.5 2A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14h9a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 12.5 2h-9ZM7 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-5ZM5 7.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-3Zm4-1a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-4Z" /></svg>);
+      return (
+        <svg {...props}>
+          <path d="M3.5 2A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14h9a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 12.5 2h-9ZM7 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v5a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-5ZM5 7.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-3Zm4-1a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-4Z" />
+        </svg>
+      );
     case "DATE":
-      return (<svg {...props}><path d="M4.5 1a.5.5 0 0 1 .5.5V3h6V1.5a.5.5 0 0 1 1 0V3h1.5A1.5 1.5 0 0 1 15 4.5v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 13.5v-9A1.5 1.5 0 0 1 2.5 3H4V1.5a.5.5 0 0 1 .5-.5ZM2.5 4a.5.5 0 0 0-.5.5V6h12V4.5a.5.5 0 0 0-.5-.5h-11ZM14 7H2v6.5a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5V7Z" /></svg>);
+      return (
+        <svg {...props}>
+          <path d="M4.5 1a.5.5 0 0 1 .5.5V3h6V1.5a.5.5 0 0 1 1 0V3h1.5A1.5 1.5 0 0 1 15 4.5v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 13.5v-9A1.5 1.5 0 0 1 2.5 3H4V1.5a.5.5 0 0 1 .5-.5ZM2.5 4a.5.5 0 0 0-.5.5V6h12V4.5a.5.5 0 0 0-.5-.5h-11ZM14 7H2v6.5a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5V7Z" />
+        </svg>
+      );
     case "AI_TEXT":
-      return (<svg {...props}><path d="M2 4a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 4Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 7Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 10Zm0 3a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 2 13Z" /><circle cx="13" cy="3" r="2" fill="#7c3aed" /></svg>);
+      return (
+        <svg {...props}>
+          <path d="M2 4a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 4Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 7Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 10Zm0 3a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 2 13Z" />
+          <circle cx="13" cy="3" r="2" fill="#7c3aed" />
+        </svg>
+      );
     default: // TEXT / single line text
-      return (<svg {...props}><path d="M2.5 3A.5.5 0 0 1 3 2.5h10a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H8.5V13a.5.5 0 0 1-1 0V4.5H3a.5.5 0 0 1-.5-.5V3Z" /></svg>);
+      return (
+        <svg {...props}>
+          <path d="M2.5 3A.5.5 0 0 1 3 2.5h10a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H8.5V13a.5.5 0 0 1-1 0V4.5H3a.5.5 0 0 1-.5-.5V3Z" />
+        </svg>
+      );
   }
 }
 
@@ -131,7 +217,11 @@ export function GridTable({
 
   // Column widths: fieldId -> width in px (overrides defaults)
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
-  const resizeRef = useRef<{ fieldId: string; startX: number; startWidth: number } | null>(null);
+  const resizeRef = useRef<{
+    fieldId: string;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
 
   const getColumnWidth = useCallback(
     (fieldId: string, index: number) =>
@@ -139,27 +229,30 @@ export function GridTable({
     [columnWidths],
   );
 
-  const handleResizeStart = useCallback((fieldId: string, startX: number, startWidth: number) => {
-    resizeRef.current = { fieldId, startX, startWidth };
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    const onMove = (e: globalThis.MouseEvent) => {
-      const r = resizeRef.current;
-      if (!r) return;
-      const delta = e.clientX - r.startX;
-      const newWidth = Math.max(MIN_COL_WIDTH, r.startWidth + delta);
-      setColumnWidths((prev) => ({ ...prev, [r.fieldId]: newWidth }));
-    };
-    const onUp = () => {
-      resizeRef.current = null;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  }, []);
+  const handleResizeStart = useCallback(
+    (fieldId: string, startX: number, startWidth: number) => {
+      resizeRef.current = { fieldId, startX, startWidth };
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      const onMove = (e: globalThis.MouseEvent) => {
+        const r = resizeRef.current;
+        if (!r) return;
+        const delta = e.clientX - r.startX;
+        const newWidth = Math.max(MIN_COL_WIDTH, r.startWidth + delta);
+        setColumnWidths((prev) => ({ ...prev, [r.fieldId]: newWidth }));
+      };
+      const onUp = () => {
+        resizeRef.current = null;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+      };
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    },
+    [],
+  );
 
   const columns = useMemo(
     () =>
@@ -256,7 +349,6 @@ export function GridTable({
     <>
       {/* ── Outer wrapper: header + data stacked vertically ── */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-
         {/* ── Header row — lives OUTSIDE the scroll container so it never moves ── */}
         <div
           className="flex shrink-0 border-b border-[#d9dee7] bg-[#f2f4f8]"
@@ -264,23 +356,32 @@ export function GridTable({
         >
           {/* Frozen left pane — always visible, not part of the scrolling header */}
           <div
-            className="flex shrink-0 items-center justify-center border-b border-r border-[#d2d9e3] bg-[#f2f4f8]"
+            className="flex shrink-0 items-center justify-center border-r border-b border-[#d2d9e3] bg-[#f2f4f8]"
             style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
           >
             {(() => {
               const allIds = table.getRowModel().rows.map((r) => r.original.id);
-              const allSelected = allIds.length > 0 && allIds.every((id) => selectedRowIds.has(id));
-              const someSelected = !allSelected && allIds.some((id) => selectedRowIds.has(id));
+              const allSelected =
+                allIds.length > 0 &&
+                allIds.every((id) => selectedRowIds.has(id));
+              const someSelected =
+                !allSelected && allIds.some((id) => selectedRowIds.has(id));
               return (
                 <button
                   type="button"
                   onClick={() => onToggleAll(allIds)}
                   className="flex h-[14px] w-[14px] items-center justify-center rounded-sm border bg-white text-white focus:outline-none"
-                  style={{ borderColor: allSelected || someSelected ? "#2a79ef" : "#b2bac5", backgroundColor: allSelected ? "#2a79ef" : "white" }}
+                  style={{
+                    borderColor:
+                      allSelected || someSelected ? "#2a79ef" : "#b2bac5",
+                    backgroundColor: allSelected ? "#2a79ef" : "white",
+                  }}
                   aria-label="Select all rows"
                 >
                   {allSelected && <IconCheckBold />}
-                  {someSelected && <div className="h-[2px] w-[8px] bg-[#2a79ef] rounded-sm" />}
+                  {someSelected && (
+                    <div className="h-[2px] w-[8px] rounded-sm bg-[#2a79ef]" />
+                  )}
                 </button>
               );
             })()}
@@ -309,7 +410,7 @@ export function GridTable({
                     </span>
                     <button
                       type="button"
-                      className="invisible flex shrink-0 items-center justify-center rounded text-[#97a0af] hover:bg-[#e0e5ed] group-hover:visible"
+                      className="invisible flex shrink-0 items-center justify-center rounded text-[#97a0af] group-hover:visible hover:bg-[#e0e5ed]"
                       style={{ width: 20, height: 20 }}
                       aria-label={`Open ${field.name} column menu`}
                     >
@@ -318,7 +419,7 @@ export function GridTable({
                     <button
                       type="button"
                       aria-label={`Resize ${field.name} column`}
-                      className="absolute right-0 top-0 z-20 h-full w-[6px] cursor-col-resize border-0 bg-transparent p-0 opacity-0 hover:bg-[#2a79ef] hover:opacity-100 group-hover:opacity-30"
+                      className="absolute top-0 right-0 z-20 h-full w-[6px] cursor-col-resize border-0 bg-transparent p-0 opacity-0 group-hover:opacity-30 hover:bg-[#2a79ef] hover:opacity-100"
                       style={{ marginRight: -3 }}
                       onMouseDown={(e) => {
                         e.preventDefault();
@@ -353,7 +454,9 @@ export function GridTable({
           onScroll={handleDataScroll}
         >
           {isLoading ? (
-            <div className="p-4 text-sm text-[#607082]">Loading table rows...</div>
+            <div className="p-4 text-sm text-[#607082]">
+              Loading table rows...
+            </div>
           ) : null}
           {isError ? (
             <div className="flex items-center gap-2 p-4 text-sm text-[#8b1f1f]">
@@ -382,9 +485,9 @@ export function GridTable({
 
               if (!row) {
                 return (
-                <div
-                  key={`loader-${item.key}`}
-                  className="absolute flex border-b border-[#d2d9e3]"
+                  <div
+                    key={`loader-${item.key}`}
+                    className="absolute flex border-b border-[#d2d9e3]"
                     style={{
                       transform: `translateY(${item.start}px)`,
                       height: ROW_HEIGHT,
@@ -393,7 +496,7 @@ export function GridTable({
                     }}
                   >
                     <div
-                      className="sticky left-0 z-10 flex shrink-0 items-center border-b border-r border-[#d2d9e3] bg-white"
+                      className="sticky left-0 z-10 flex shrink-0 items-center border-r border-b border-[#d2d9e3] bg-white"
                       style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
                     />
                     <div
@@ -421,8 +524,12 @@ export function GridTable({
                 >
                   {/* Frozen left pane — drag handle / row number / checkbox / expand */}
                   <div
-                    className="sticky left-0 z-10 flex shrink-0 items-center border-b border-r border-[#d2d9e3]"
-                    style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT, backgroundColor: isSelected ? "#ebf3ff" : "white" }}
+                    className="sticky left-0 z-10 flex shrink-0 items-center border-r border-b border-[#d2d9e3]"
+                    style={{
+                      width: LEFT_PANE_WIDTH,
+                      height: ROW_HEIGHT,
+                      backgroundColor: isSelected ? "#ebf3ff" : "white",
+                    }}
                   >
                     <div className="invisible flex w-4 shrink-0 items-center justify-center text-[#97a0af] group-hover:visible">
                       <IconDragHandle />
@@ -434,12 +541,17 @@ export function GridTable({
                       </span>
                     )}
                     {/* Checkbox: visible on hover or when selected */}
-                    <div className={`flex-1 items-center justify-center ${isSelected ? "flex" : "hidden group-hover:flex"}`}>
+                    <div
+                      className={`flex-1 items-center justify-center ${isSelected ? "flex" : "hidden group-hover:flex"}`}
+                    >
                       <button
                         type="button"
                         onClick={() => onToggleRow(row.original.id)}
                         className="flex h-[14px] w-[14px] items-center justify-center rounded-sm border text-white focus:outline-none"
-                        style={{ borderColor: isSelected ? "#2a79ef" : "#b2bac5", backgroundColor: isSelected ? "#2a79ef" : "white" }}
+                        style={{
+                          borderColor: isSelected ? "#2a79ef" : "#b2bac5",
+                          backgroundColor: isSelected ? "#2a79ef" : "white",
+                        }}
                         aria-label={isSelected ? "Deselect row" : "Select row"}
                       >
                         {isSelected && <IconCheckBold />}
@@ -491,12 +603,16 @@ export function GridTable({
           {/* ── Ghost row — insert new record ── */}
           <div
             className="flex border-b border-[#d2d9e3] bg-white"
-            style={{ width: "100%", minWidth: totalContentWidth, height: ROW_HEIGHT }}
+            style={{
+              width: "100%",
+              minWidth: totalContentWidth,
+              height: ROW_HEIGHT,
+            }}
           >
             <button
               type="button"
               onClick={onAddRow}
-              className="sticky left-0 z-10 flex shrink-0 items-center justify-center border-b border-r border-[#d2d9e3] bg-white text-[#97a0af] hover:text-[#4f5d70]"
+              className="sticky left-0 z-10 flex shrink-0 items-center justify-center border-r border-b border-[#d2d9e3] bg-white text-[#97a0af] hover:text-[#4f5d70]"
               style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
               title="You can also insert a new record anywhere by pressing Shift-Enter"
               aria-label="Insert new record in grid"
@@ -509,7 +625,10 @@ export function GridTable({
       </div>
 
       {/* ── Summary bar ── */}
-      <div className="flex shrink-0 items-center gap-2 border-t border-[#e2e5ea] bg-white px-3 text-xs text-[#607082]" style={{ height: 36 }}>
+      <div
+        className="flex shrink-0 items-center gap-2 border-t border-[#e2e5ea] bg-white px-3 text-xs text-[#607082]"
+        style={{ height: 36 }}
+      >
         {/* Add record pill button */}
         <div className="flex items-center">
           <button
@@ -524,18 +643,65 @@ export function GridTable({
           <button
             type="button"
             onClick={onAddRow}
-            className="flex items-center gap-1 rounded-r-full border border-[#d9dee7] bg-white pl-1 pr-2 text-[#4f5d70] hover:bg-[#f0f2f5]"
+            className="flex items-center gap-1 rounded-r-full border border-[#d9dee7] bg-white pr-2 pl-1 text-[#4f5d70] hover:bg-[#f0f2f5]"
             style={{ height: 26 }}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-none">
-              <path d="M13.5 8V11" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M12 9.5H15" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M5.25 2.5V5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M4 3.75H6.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M10.5 11.5V13.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M9.5 12.5H11.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M11.6515 2.35241L2.35746 11.6464C2.1622 11.8417 2.1622 12.1583 2.35746 12.3536L3.65014 13.6462C3.8454 13.8415 4.16198 13.8415 4.35725 13.6462L13.6513 4.3522C13.8465 4.15694 13.8465 3.84035 13.6513 3.64509L12.3586 2.35241C12.1633 2.15715 11.8468 2.15715 11.6515 2.35241Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M9 5L11 7" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="flex-none"
+            >
+              <path
+                d="M13.5 8V11"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M12 9.5H15"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M5.25 2.5V5"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M4 3.75H6.5"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M10.5 11.5V13.5"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M9.5 12.5H11.5"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M11.6515 2.35241L2.35746 11.6464C2.1622 11.8417 2.1622 12.1583 2.35746 12.3536L3.65014 13.6462C3.8454 13.8415 4.16198 13.8415 4.35725 13.6462L13.6513 4.3522C13.8465 4.15694 13.8465 3.84035 13.6513 3.64509L12.3586 2.35241C12.1633 2.15715 11.8468 2.15715 11.6515 2.35241Z"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M9 5L11 7"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
             <span>Add…</span>
           </button>

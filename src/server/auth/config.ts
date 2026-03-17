@@ -33,6 +33,10 @@ declare module "next-auth" {
  * @see https://next-auth.js.org/configuration/options
  */
 export const authConfig = {
+  trustHost: true,
+  pages: {
+    signIn: "/sign-in",
+  },
   providers: [
     ...(env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET
       ? [

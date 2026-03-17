@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import {
   RecordCreateInputSchema,
   RecordDeleteInputSchema,
@@ -7,11 +7,14 @@ import {
   RecordListByTableInputSchema,
 } from "~/types/base-table";
 
+import { assertRecordAccess, assertTableAccess } from "../auth-helpers";
+
 export const recordRouter = createTRPCRouter({
-  listByTable: publicProcedure
+  listByTable: protectedProcedure
     .input(RecordListByTableInputSchema)
     .output(RecordForTableSchema.array())
-    .query(({ ctx, input }) => {
+    .query(async ({ ctx, input }) => {
+      await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
       return ctx.db.record.findMany({
         where: { tableId: input.tableId },
         include: {
@@ -21,10 +24,11 @@ export const recordRouter = createTRPCRouter({
       });
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(RecordCreateInputSchema)
     .output(RecordForTableSchema)
     .mutation(async ({ ctx, input }) => {
+      await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
       const created = await ctx.db.record.create({
         data: {
           tableId: input.tableId,
@@ -38,10 +42,11 @@ export const recordRouter = createTRPCRouter({
       };
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(RecordDeleteInputSchema)
     .output(RecordDeleteInputSchema)
     .mutation(async ({ ctx, input }) => {
+      await assertRecordAccess(ctx.db, input.recordId, ctx.session.user.id);
       await ctx.db.cell.deleteMany({
         where: { recordId: input.recordId },
       });
@@ -53,10 +58,13 @@ export const recordRouter = createTRPCRouter({
       return { recordId: input.recordId };
     }),
 
-  bulkDelete: publicProcedure
+  bulkDelete: protectedProcedure
     .input(z.object({ recordIds: z.array(z.string().min(1)).min(1) }))
     .output(z.object({ deletedCount: z.number() }))
     .mutation(async ({ ctx, input }) => {
+      for (const recordId of input.recordIds) {
+        await assertRecordAccess(ctx.db, recordId, ctx.session.user.id);
+      }
       await ctx.db.cell.deleteMany({
         where: { recordId: { in: input.recordIds } },
       });

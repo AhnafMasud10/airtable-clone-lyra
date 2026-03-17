@@ -13,7 +13,10 @@ export async function assertBaseOwnership(
     where: { id: baseId },
     select: { ownerId: true },
   });
-  if (base?.ownerId !== userId) {
+  if (!base) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Base not found" });
+  }
+  if (base.ownerId !== userId) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
   }
 }

@@ -47,28 +47,60 @@ function makeDefaultFilter(field: GridField): GridFilter {
   if (type === "number") {
     return { fieldId: field.id, type: "number", op: "eq", conjunction: "and" };
   }
-  return { fieldId: field.id, type: "text", op: "contains", conjunction: "and" };
+  return {
+    fieldId: field.id,
+    type: "text",
+    op: "contains",
+    conjunction: "and",
+  };
 }
 
 function ChevronDown() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" aria-hidden="true" style={{ shapeRendering: "geometricPrecision" }}>
-      <path fill="currentColor" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none"
+      aria-hidden="true"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <path
+        fill="currentColor"
+        d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
+      />
     </svg>
   );
 }
 
 function TrashIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none icon" aria-hidden="true" style={{ shapeRendering: "geometricPrecision" }}>
-      <path fill="currentColor" d="M6.5 1h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1 0-1ZM3 3.5h10a.5.5 0 0 1 0 1H12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8H3a.5.5 0 0 1 0-1Zm2.5 1v8h5v-8h-5Z" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="icon flex-none"
+      aria-hidden="true"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <path
+        fill="currentColor"
+        d="M6.5 1h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1 0-1ZM3 3.5h10a.5.5 0 0 1 0 1H12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8H3a.5.5 0 0 1 0-1Zm2.5 1v8h5v-8h-5Z"
+      />
     </svg>
   );
 }
 
 function DragIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none icon" aria-hidden="true" style={{ shapeRendering: "geometricPrecision" }}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="icon flex-none"
+      aria-hidden="true"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
       <circle cx="5.5" cy="4" r="1.2" fill="currentColor" />
       <circle cx="5.5" cy="8" r="1.2" fill="currentColor" />
       <circle cx="5.5" cy="12" r="1.2" fill="currentColor" />
@@ -81,19 +113,45 @@ function DragIcon() {
 
 function PlusIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none icon" aria-hidden="true" style={{ shapeRendering: "geometricPrecision" }}>
-      <path fill="currentColor" d="M8 2a.75.75 0 0 1 .75.75v4.5h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5v-4.5A.75.75 0 0 1 8 2Z" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="icon flex-none"
+      aria-hidden="true"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <path
+        fill="currentColor"
+        d="M8 2a.75.75 0 0 1 .75.75v4.5h4.5a.75.75 0 0 1 0 1.5h-4.5v4.5a.75.75 0 0 1-1.5 0v-4.5h-4.5a.75.75 0 0 1 0-1.5h4.5v-4.5A.75.75 0 0 1 8 2Z"
+      />
     </svg>
   );
 }
 
 function AiSpinnerIcon() {
   return (
-    <svg height="20" viewBox="0 0 160 160" width="20" xmlns="http://www.w3.org/2000/svg" style={{ color: "var(--colors-hyperlink-primary, rgb(22,110,225))" }}>
+    <svg
+      height="20"
+      viewBox="0 0 160 160"
+      width="20"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ color: "var(--colors-hyperlink-primary, rgb(22,110,225))" }}
+    >
       {/* Simplified dotted ring icon to represent the AI spinner */}
-      {[0, 32.7, 65.5, 98.2, 130.9, 163.6, 196.4, 229.1, 261.8, 294.5, 327.3].map((angle, i) => (
+      {[
+        0, 32.7, 65.5, 98.2, 130.9, 163.6, 196.4, 229.1, 261.8, 294.5, 327.3,
+      ].map((angle, i) => (
         <g key={i} transform={`rotate(${angle}, 80, 80)`}>
-          <rect x="72" y="4" width="16" height="16" rx="4" fill="currentColor" opacity={0.15 + (i * 0.07)} />
+          <rect
+            x="72"
+            y="4"
+            width="16"
+            height="16"
+            rx="4"
+            fill="currentColor"
+            opacity={0.15 + i * 0.07}
+          />
         </g>
       ))}
       <rect x="48" y="72" width="16" height="16" rx="4" fill="currentColor" />
@@ -110,8 +168,16 @@ type FilterRowProps = Readonly<{
   onDelete: () => void;
 }>;
 
-function FilterRow({ filter, allFields, isFirst, onChange, onDelete }: FilterRowProps) {
-  const [openDropdown, setOpenDropdown] = useState<"field" | "operator" | null>(null);
+function FilterRow({
+  filter,
+  allFields,
+  isFirst,
+  onChange,
+  onDelete,
+}: FilterRowProps) {
+  const [openDropdown, setOpenDropdown] = useState<"field" | "operator" | null>(
+    null,
+  );
   const [fieldSearch, setFieldSearch] = useState("");
   const [opSearch, setOpSearch] = useState("");
   const rowRef = useRef<HTMLDivElement>(null);
@@ -141,8 +207,10 @@ function FilterRow({ filter, allFields, isFirst, onChange, onDelete }: FilterRow
 
   const handleOpSelect = (op: string) => {
     if (isNoValueOp(op)) {
-      if (filter.type === "text") onChange({ fieldId: filter.fieldId, type: "text", op, conjunction });
-      else if (filter.type === "number") onChange({ fieldId: filter.fieldId, type: "number", op, conjunction });
+      if (filter.type === "text")
+        onChange({ fieldId: filter.fieldId, type: "text", op, conjunction });
+      else if (filter.type === "number")
+        onChange({ fieldId: filter.fieldId, type: "number", op, conjunction });
     } else if (filter.type === "text") {
       onChange({ ...filter, op: op as "contains" | "not_contains" | "equals" });
     } else if (filter.type === "number") {
@@ -174,19 +242,22 @@ function FilterRow({ filter, allFields, isFirst, onChange, onDelete }: FilterRow
   return (
     <div ref={rowRef} className="flex w-full" style={{ height: "2.5rem" }}>
       {/* Prefix: "Where" label or "and/or" conjunction picker */}
-      <div className="flex items-center px-1 shrink-0" style={{ width: "4.5rem", paddingBottom: "0.5rem" }}>
+      <div
+        className="flex shrink-0 items-center px-1"
+        style={{ width: "4.5rem", paddingBottom: "0.5rem" }}
+      >
         {isFirst ? (
-          <div className="flex items-center flex-auto px-1 w-full h-full text-[13px] text-[rgb(29,31,37)]">
+          <div className="flex h-full w-full flex-auto items-center px-1 text-[13px] text-[rgb(29,31,37)]">
             Where
           </div>
         ) : (
-          <div className="w-full h-full">
+          <div className="h-full w-full">
             <button
               type="button"
               onClick={toggleConjunction}
-              className="rounded px-1 flex items-center flex-auto w-full h-full text-[13px] text-[rgb(29,31,37)] bg-white border border-[rgb(214,218,226)] hover:bg-[rgb(246,248,250)] focus:outline-none"
+              className="flex h-full w-full flex-auto items-center rounded border border-[rgb(214,218,226)] bg-white px-1 text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)] focus:outline-none"
             >
-              <div className="flex-auto flex items-center justify-between">
+              <div className="flex flex-auto items-center justify-between">
                 <div>{conjunction}</div>
                 <ChevronDown />
               </div>
@@ -196,24 +267,43 @@ function FilterRow({ filter, allFields, isFirst, onChange, onDelete }: FilterRow
       </div>
 
       {/* Main filter control row */}
-      <div className="flex-auto flex items-center" style={{ paddingRight: "0.5rem", height: "2rem", marginTop: "auto", marginBottom: "auto" }}>
-        <div className="flex items-stretch w-full">
+      <div
+        className="flex flex-auto items-center"
+        style={{
+          paddingRight: "0.5rem",
+          height: "2rem",
+          marginTop: "auto",
+          marginBottom: "auto",
+        }}
+      >
+        <div className="flex w-full items-stretch">
           {/* Combined bordered box */}
-          <div className="flex items-stretch border border-[rgb(214,218,226)] rounded bg-white" style={{ height: 30, flex: 1 }}>
+          <div
+            className="flex items-stretch rounded border border-[rgb(214,218,226)] bg-white"
+            style={{ height: 30, flex: 1 }}
+          >
             {/* Field selector — ~125px with right border */}
-            <div className="relative flex items-stretch border-r border-[rgb(214,218,226)]" style={{ width: 125 }}>
+            <div
+              className="relative flex items-stretch border-r border-[rgb(214,218,226)]"
+              style={{ width: 125 }}
+            >
               <button
                 type="button"
-                onClick={() => { setOpenDropdown((d) => d === "field" ? null : "field"); setFieldSearch(""); }}
-                className="flex items-center px-2 w-full h-full text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)] focus:outline-none"
+                onClick={() => {
+                  setOpenDropdown((d) => (d === "field" ? null : "field"));
+                  setFieldSearch("");
+                }}
+                className="flex h-full w-full items-center px-2 text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)] focus:outline-none"
               >
-                <div className="truncate flex-auto text-left">{selectedField?.name ?? "Select field"}</div>
-                <div className="flex-none flex items-center ml-1">
+                <div className="flex-auto truncate text-left">
+                  {selectedField?.name ?? "Select field"}
+                </div>
+                <div className="ml-1 flex flex-none items-center">
                   <ChevronDown />
                 </div>
               </button>
               {openDropdown === "field" && (
-                <div className="absolute left-0 top-full z-50 mt-1 w-52 rounded-lg border border-[rgb(214,218,226)] bg-white shadow-lg">
+                <div className="absolute top-full left-0 z-50 mt-1 w-52 rounded-lg border border-[rgb(214,218,226)] bg-white shadow-lg">
                   <div className="border-b border-[rgb(214,218,226)] px-3 py-2">
                     <input
                       type="text"
@@ -226,7 +316,10 @@ function FilterRow({ filter, allFields, isFirst, onChange, onDelete }: FilterRow
                   </div>
                   <div className="max-h-52 overflow-y-auto py-1">
                     {filteredFields.map((f) => (
-                      <button key={f.id} type="button" onClick={() => handleFieldSelect(f)}
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => handleFieldSelect(f)}
                         className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)]"
                       >
                         {f.name}
@@ -238,19 +331,27 @@ function FilterRow({ filter, allFields, isFirst, onChange, onDelete }: FilterRow
             </div>
 
             {/* Operator selector — ~125px with right border */}
-            <div className="relative flex items-stretch border-r border-[rgb(214,218,226)]" style={{ width: 125 }}>
+            <div
+              className="relative flex items-stretch border-r border-[rgb(214,218,226)]"
+              style={{ width: 125 }}
+            >
               <button
                 type="button"
-                onClick={() => { setOpenDropdown((d) => d === "operator" ? null : "operator"); setOpSearch(""); }}
-                className="flex items-center px-2 w-full h-full text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)] focus:outline-none"
+                onClick={() => {
+                  setOpenDropdown((d) =>
+                    d === "operator" ? null : "operator",
+                  );
+                  setOpSearch("");
+                }}
+                className="flex h-full w-full items-center px-2 text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)] focus:outline-none"
               >
-                <div className="truncate flex-auto text-left">{opLabel}</div>
-                <div className="flex-none flex items-center ml-1">
+                <div className="flex-auto truncate text-left">{opLabel}</div>
+                <div className="ml-1 flex flex-none items-center">
                   <ChevronDown />
                 </div>
               </button>
               {openDropdown === "operator" && (
-                <div className="absolute left-0 top-full z-50 mt-1 w-52 rounded-lg border border-[rgb(214,218,226)] bg-white shadow-lg">
+                <div className="absolute top-full left-0 z-50 mt-1 w-52 rounded-lg border border-[rgb(214,218,226)] bg-white shadow-lg">
                   <div className="border-b border-[rgb(214,218,226)] px-3 py-2">
                     <input
                       type="text"
@@ -263,7 +364,10 @@ function FilterRow({ filter, allFields, isFirst, onChange, onDelete }: FilterRow
                   </div>
                   <div className="max-h-52 overflow-y-auto py-1">
                     {filteredOps.map((o) => (
-                      <button key={o.op} type="button" onClick={() => handleOpSelect(o.op)}
+                      <button
+                        key={o.op}
+                        type="button"
+                        onClick={() => handleOpSelect(o.op)}
                         className="flex w-full items-center px-3 py-2 text-left text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)]"
                       >
                         {o.label}
@@ -275,7 +379,7 @@ function FilterRow({ filter, allFields, isFirst, onChange, onDelete }: FilterRow
             </div>
 
             {/* Value input — flex-auto with right border */}
-            <div className="flex-auto flex items-stretch border-r border-[rgb(214,218,226)] overflow-hidden">
+            <div className="flex flex-auto items-stretch overflow-hidden border-r border-[rgb(214,218,226)]">
               {isNoValueOp(filter.op) ? (
                 <div className="flex-auto" />
               ) : (
@@ -284,7 +388,7 @@ function FilterRow({ filter, allFields, isFirst, onChange, onDelete }: FilterRow
                   value={filter.value ?? ""}
                   onChange={(e) => handleValueChange(e.target.value)}
                   placeholder="Enter a value"
-                  className="w-full px-2 text-[13px] text-[rgb(29,31,37)] placeholder-[rgb(150,155,165)] bg-transparent outline-none"
+                  className="w-full bg-transparent px-2 text-[13px] text-[rgb(29,31,37)] placeholder-[rgb(150,155,165)] outline-none"
                   style={{ border: 0 }}
                 />
               )}
@@ -294,7 +398,7 @@ function FilterRow({ filter, allFields, isFirst, onChange, onDelete }: FilterRow
             <button
               type="button"
               onClick={onDelete}
-              className="flex-none flex items-center justify-center border-r border-[rgb(214,218,226)] hover:bg-[rgb(246,248,250)] text-[rgb(97,102,112)] focus:outline-none"
+              className="flex flex-none items-center justify-center border-r border-[rgb(214,218,226)] text-[rgb(97,102,112)] hover:bg-[rgb(246,248,250)] focus:outline-none"
               style={{ width: "2rem", height: "auto" }}
               aria-label="Remove filter"
             >
@@ -303,7 +407,7 @@ function FilterRow({ filter, allFields, isFirst, onChange, onDelete }: FilterRow
 
             {/* Drag handle — 2rem */}
             <div
-              className="flex-none flex items-center justify-center cursor-grab text-[rgb(196,201,209)]"
+              className="flex flex-none cursor-grab items-center justify-center text-[rgb(196,201,209)]"
               style={{ width: "2rem", height: "auto" }}
             >
               <DragIcon />
@@ -322,7 +426,10 @@ const FONT_FAMILY =
 function calcPos(anchor: HTMLButtonElement) {
   const rect = anchor.getBoundingClientRect();
   const padding = 8;
-  const left = Math.max(padding, Math.min(rect.left, window.innerWidth - PANEL_WIDTH - padding));
+  const left = Math.max(
+    padding,
+    Math.min(rect.left, window.innerWidth - PANEL_WIDTH - padding),
+  );
   return { top: rect.bottom + 4, left };
 }
 
@@ -399,11 +506,13 @@ export function FilterPanel({
       }}
     >
       {/* Outer popover shell */}
-      <div className="rounded shadow-[0_4px_16px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col bg-white border border-[rgb(214,218,226)]" style={{ maxHeight: "calc(100vh - 120px)" }}>
-
+      <div
+        className="flex flex-col overflow-hidden rounded border border-[rgb(214,218,226)] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.12)]"
+        style={{ maxHeight: "calc(100vh - 120px)" }}
+      >
         {/* Header: "Filter" title */}
         <div className="flex items-center justify-between px-4 pt-4">
-          <h3 className="text-[11px] font-semibold text-[rgb(97,102,112)] uppercase tracking-wide leading-none">
+          <h3 className="text-[11px] leading-none font-semibold tracking-wide text-[rgb(97,102,112)] uppercase">
             Filter
           </h3>
         </div>
@@ -415,7 +524,7 @@ export function FilterPanel({
               className="flex items-center border border-[rgb(214,218,226)] bg-white p-1.5"
               style={{ borderRadius: 6 }}
             >
-              <div className="flex-none flex items-center ml-1">
+              <div className="ml-1 flex flex-none items-center">
                 <AiSpinnerIcon />
               </div>
               <div className="flex-auto px-2">
@@ -423,7 +532,7 @@ export function FilterPanel({
                   type="text"
                   placeholder="Describe what you want to see"
                   aria-label="Ask AI to generate filters"
-                  className="w-full border-none outline-none text-[13px] text-[rgb(29,31,37)] placeholder-[rgb(150,155,165)] bg-white"
+                  className="w-full border-none bg-white text-[13px] text-[rgb(29,31,37)] placeholder-[rgb(150,155,165)] outline-none"
                   style={{ outline: "none", border: "none", boxShadow: "none" }}
                 />
               </div>
@@ -437,7 +546,7 @@ export function FilterPanel({
         </div>
 
         {/* Filter rows — scrollable */}
-        <div className="px-4 overflow-auto" style={{ maxHeight: 425 }}>
+        <div className="overflow-auto px-4" style={{ maxHeight: 425 }}>
           {filters.length === 0 && (
             <div className="py-2 text-[13px] text-[rgb(150,155,165)]">
               No filters applied to this view
@@ -458,8 +567,8 @@ export function FilterPanel({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-[rgb(214,218,226)]">
-          <div className="flex items-center flex-wrap gap-x-3">
+        <div className="flex items-center justify-between border-t border-[rgb(214,218,226)] px-4 py-3">
+          <div className="flex flex-wrap items-center gap-x-3">
             {/* Add condition */}
             <button
               type="button"
@@ -482,7 +591,7 @@ export function FilterPanel({
             {/* Help icon */}
             <button
               type="button"
-              className="flex items-center justify-center w-4 h-4 rounded-full border border-[rgb(150,155,165)] text-[rgb(97,102,112)] hover:text-[rgb(29,31,37)] focus:outline-none text-[10px] font-semibold"
+              className="flex h-4 w-4 items-center justify-center rounded-full border border-[rgb(150,155,165)] text-[10px] font-semibold text-[rgb(97,102,112)] hover:text-[rgb(29,31,37)] focus:outline-none"
               aria-label="Help"
             >
               ?

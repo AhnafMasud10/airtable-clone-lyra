@@ -3,7 +3,11 @@
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 
-export function CreateBaseButton() {
+type CreateBaseButtonProps = Readonly<{
+  compact?: boolean;
+}>;
+
+export function CreateBaseButton({ compact = false }: CreateBaseButtonProps) {
   const router = useRouter();
   const utils = api.useUtils();
   const createBase = api.base.create.useMutation({
@@ -22,7 +26,7 @@ export function CreateBaseButton() {
         if (!name) return;
         createBase.mutate({ name });
       }}
-      className="w-full rounded-md bg-[#2a79ef] px-4 py-2 text-sm font-medium text-white shadow-[inset_0_-1px_0_rgba(0,0,0,0.1)] transition hover:bg-[#1f6feb] focus-visible:ring-2 focus-visible:ring-[#2a79ef] focus-visible:outline-none"
+      className={`rounded-md bg-[#2a79ef] px-4 py-2 text-sm font-medium text-white shadow-[inset_0_-1px_0_rgba(0,0,0,0.1)] transition hover:bg-[#1f6feb] focus-visible:ring-2 focus-visible:ring-[#2a79ef] focus-visible:outline-none ${compact ? "" : "w-full"}`}
     >
       {createBase.isPending ? "Creating..." : "+ Create"}
     </button>

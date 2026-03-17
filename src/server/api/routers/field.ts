@@ -1,4 +1,4 @@
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import {
   FieldCreateInputSchema,
   FieldDeleteInputSchema,
@@ -7,21 +7,25 @@ import {
   FieldUpdateInputSchema,
 } from "~/types/base-table";
 
+import { assertFieldAccess, assertTableAccess } from "../auth-helpers";
+
 export const fieldRouter = createTRPCRouter({
-  listByTable: publicProcedure
+  listByTable: protectedProcedure
     .input(FieldListByTableInputSchema)
     .output(FieldForTableSchema.array())
-    .query(({ ctx, input }) => {
+    .query(async ({ ctx, input }) => {
+      await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
       return ctx.db.field.findMany({
         where: { tableId: input.tableId },
         orderBy: { order: "asc" },
       });
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(FieldCreateInputSchema)
     .output(FieldForTableSchema)
-    .mutation(({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
+      await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
       return ctx.db.field.create({
         data: {
           tableId: input.tableId,
@@ -32,10 +36,11 @@ export const fieldRouter = createTRPCRouter({
       });
     }),
 
-  update: publicProcedure
+  update: protectedProcedure
     .input(FieldUpdateInputSchema)
     .output(FieldForTableSchema)
-    .mutation(({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
+      await assertFieldAccess(ctx.db, input.fieldId, ctx.session.user.id);
       return ctx.db.field.update({
         where: { id: input.fieldId },
         data: {
@@ -46,10 +51,11 @@ export const fieldRouter = createTRPCRouter({
       });
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(FieldDeleteInputSchema)
     .output(FieldDeleteInputSchema)
     .mutation(async ({ ctx, input }) => {
+      await assertFieldAccess(ctx.db, input.fieldId, ctx.session.user.id);
       await ctx.db.field.delete({
         where: { id: input.fieldId },
       });

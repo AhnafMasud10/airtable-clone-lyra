@@ -101,7 +101,11 @@ export function BaseGridPageClient({
       setFilters([]);
       setSorts([]);
       setGlobalSearch("");
-      globalThis.history.replaceState(null, "", `/base/${baseId}/table/${created.id}`);
+      globalThis.history.replaceState(
+        null,
+        "",
+        `/base/${baseId}/table/${created.id}`,
+      );
     },
   });
 
@@ -335,7 +339,10 @@ export function BaseGridPageClient({
           pages: current.pages.map((page) => ({
             ...page,
             rows: page.rows.filter((row) => !idSet.has(row.id)),
-            total: page.total - input.recordIds.filter((id) => page.rows.some((r) => r.id === id)).length,
+            total:
+              page.total -
+              input.recordIds.filter((id) => page.rows.some((r) => r.id === id))
+                .length,
           })),
         };
       });
@@ -344,7 +351,10 @@ export function BaseGridPageClient({
     },
     onError: (_error, _input, context) => {
       if (!context?.previousGrid) return;
-      utils.table.getGridWindow.setInfiniteData(gridInput, context.previousGrid);
+      utils.table.getGridWindow.setInfiniteData(
+        gridInput,
+        context.previousGrid,
+      );
     },
     onSettled: async () => {
       if (!selectedTableId) return;
@@ -400,14 +410,21 @@ export function BaseGridPageClient({
     setHiddenFieldIds(config.hiddenFieldIds ?? []);
   }, []);
 
-  const handleSelectTable = useCallback((tableId: string) => {
-    setSelectedTableId(tableId);
-    setSelectedViewId(null);
-    setFilters([]);
-    setSorts([]);
-    setGlobalSearch("");
-    globalThis.history.replaceState(null, "", `/base/${baseId}/table/${tableId}`);
-  }, [baseId]);
+  const handleSelectTable = useCallback(
+    (tableId: string) => {
+      setSelectedTableId(tableId);
+      setSelectedViewId(null);
+      setFilters([]);
+      setSorts([]);
+      setGlobalSearch("");
+      globalThis.history.replaceState(
+        null,
+        "",
+        `/base/${baseId}/table/${tableId}`,
+      );
+    },
+    [baseId],
+  );
 
   const handleAddTable = useCallback(() => {
     const tables = tablesQuery.data ?? [];
@@ -525,7 +542,9 @@ export function BaseGridPageClient({
 
   const handleToggleField = useCallback((fieldId: string) => {
     setHiddenFieldIds((prev) =>
-      prev.includes(fieldId) ? prev.filter((id) => id !== fieldId) : [...prev, fieldId],
+      prev.includes(fieldId)
+        ? prev.filter((id) => id !== fieldId)
+        : [...prev, fieldId],
     );
   }, []);
 
@@ -545,31 +564,85 @@ export function BaseGridPageClient({
       <aside className="flex w-14 shrink-0 flex-col items-center justify-between border-r border-black/10 bg-white py-4">
         <div className="flex flex-col items-center gap-4">
           {/* Home / Airtable logo */}
-          <button type="button" className="flex h-6 w-6 items-center justify-center rounded-full">
-            <svg width="24" height="20.4" viewBox="0 0 200 170" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+          <button
+            type="button"
+            className="flex h-6 w-6 items-center justify-center rounded-full"
+          >
+            <svg
+              width="24"
+              height="20.4"
+              viewBox="0 0 200 170"
+              className="flex-none"
+              style={{ shapeRendering: "geometricPrecision" }}
+            >
               <g>
-                <path fill="currentColor" d="M90.0389,12.3675 L24.0799,39.6605 C20.4119,41.1785 20.4499,46.3885 24.1409,47.8515 L90.3759,74.1175 C96.1959,76.4255 102.6769,76.4255 108.4959,74.1175 L174.7319,47.8515 C178.4219,46.3885 178.4609,41.1785 174.7919,39.6605 L108.8339,12.3675 C102.8159,9.8775 96.0559,9.8775 90.0389,12.3675" />
-                <path fill="currentColor" d="M105.3122,88.4608 L105.3122,154.0768 C105.3122,157.1978 108.4592,159.3348 111.3602,158.1848 L185.1662,129.5368 C186.8512,128.8688 187.9562,127.2408 187.9562,125.4288 L187.9562,59.8128 C187.9562,56.6918 184.8092,54.5548 181.9082,55.7048 L108.1022,84.3528 C106.4182,85.0208 105.3122,86.6488 105.3122,88.4608" />
-                <path fill="currentColor" d="M88.0781,91.8464 L66.1741,102.4224 L63.9501,103.4974 L17.7121,125.6524 C14.7811,127.0664 11.0401,124.9304 11.0401,121.6744 L11.0401,60.0884 C11.0401,58.9104 11.6441,57.8934 12.4541,57.1274 C12.7921,56.7884 13.1751,56.5094 13.5731,56.2884 C14.6781,55.6254 16.2541,55.4484 17.5941,55.9784 L87.7101,83.7594 C91.2741,85.1734 91.5541,90.1674 88.0781,91.8464" />
+                <path
+                  fill="currentColor"
+                  d="M90.0389,12.3675 L24.0799,39.6605 C20.4119,41.1785 20.4499,46.3885 24.1409,47.8515 L90.3759,74.1175 C96.1959,76.4255 102.6769,76.4255 108.4959,74.1175 L174.7319,47.8515 C178.4219,46.3885 178.4609,41.1785 174.7919,39.6605 L108.8339,12.3675 C102.8159,9.8775 96.0559,9.8775 90.0389,12.3675"
+                />
+                <path
+                  fill="currentColor"
+                  d="M105.3122,88.4608 L105.3122,154.0768 C105.3122,157.1978 108.4592,159.3348 111.3602,158.1848 L185.1662,129.5368 C186.8512,128.8688 187.9562,127.2408 187.9562,125.4288 L187.9562,59.8128 C187.9562,56.6918 184.8092,54.5548 181.9082,55.7048 L108.1022,84.3528 C106.4182,85.0208 105.3122,86.6488 105.3122,88.4608"
+                />
+                <path
+                  fill="currentColor"
+                  d="M88.0781,91.8464 L66.1741,102.4224 L63.9501,103.4974 L17.7121,125.6524 C14.7811,127.0664 11.0401,124.9304 11.0401,121.6744 L11.0401,60.0884 C11.0401,58.9104 11.6441,57.8934 12.4541,57.1274 C12.7921,56.7884 13.1751,56.5094 13.5731,56.2884 C14.6781,55.6254 16.2541,55.4484 17.5941,55.9784 L87.7101,83.7594 C91.2741,85.1734 91.5541,90.1674 88.0781,91.8464"
+                />
               </g>
             </svg>
           </button>
           {/* Omni button placeholder */}
-          <button type="button" className="flex h-7 w-7 items-center justify-center rounded-full text-[rgb(64,124,74)]">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none"><circle cx="8" cy="8" r="7" /></svg>
+          <button
+            type="button"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-[rgb(64,124,74)]"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              className="flex-none"
+            >
+              <circle cx="8" cy="8" r="7" />
+            </svg>
           </button>
         </div>
         <div className="flex flex-col items-center gap-3">
           {/* Help */}
-          <button type="button" className="flex h-7 w-7 items-center justify-center rounded-full text-[rgb(97,102,112)] hover:bg-[rgb(229,233,240)]">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1ZM2 8a6 6 0 1 1 12 0A6 6 0 0 1 2 8Zm5.25-2.5a.75.75 0 0 1 1.5 0c0 .42-.18.757-.437 1.015A3.4 3.4 0 0 1 7.75 6.9a.75.75 0 0 1-.5-1.414c.197-.07.355-.149.473-.247.11-.092.027-.076.027-.24ZM8 9a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z" /></svg>
+          <button
+            type="button"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-[rgb(97,102,112)] hover:bg-[rgb(229,233,240)]"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              className="flex-none"
+            >
+              <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1ZM2 8a6 6 0 1 1 12 0A6 6 0 0 1 2 8Zm5.25-2.5a.75.75 0 0 1 1.5 0c0 .42-.18.757-.437 1.015A3.4 3.4 0 0 1 7.75 6.9a.75.75 0 0 1-.5-1.414c.197-.07.355-.149.473-.247.11-.092.027-.076.027-.24ZM8 9a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z" />
+            </svg>
           </button>
           {/* Notifications */}
-          <button type="button" className="flex h-7 w-7 items-center justify-center rounded-full text-[rgb(97,102,112)] hover:bg-[rgb(229,233,240)]">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none"><path d="M8 1.5A4.5 4.5 0 0 0 3.5 6v2.29l-.88 1.76A1 1 0 0 0 3.5 11.5h2.1a2.5 2.5 0 0 0 4.8 0h2.1a1 1 0 0 0 .88-1.45L12.5 8.29V6A4.5 4.5 0 0 0 8 1.5Z" /></svg>
+          <button
+            type="button"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-[rgb(97,102,112)] hover:bg-[rgb(229,233,240)]"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              className="flex-none"
+            >
+              <path d="M8 1.5A4.5 4.5 0 0 0 3.5 6v2.29l-.88 1.76A1 1 0 0 0 3.5 11.5h2.1a2.5 2.5 0 0 0 4.8 0h2.1a1 1 0 0 0 .88-1.45L12.5 8.29V6A4.5 4.5 0 0 0 8 1.5Z" />
+            </svg>
           </button>
           {/* User avatar */}
-          <button type="button" className="flex h-7 w-7 items-center justify-center rounded-full bg-[rgb(124,55,239)] text-[10px] font-semibold text-white shadow-sm">
+          <button
+            type="button"
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-[rgb(124,55,239)] text-[10px] font-semibold text-white shadow-sm"
+          >
             A
           </button>
         </div>
