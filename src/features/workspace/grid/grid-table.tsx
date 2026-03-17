@@ -175,6 +175,7 @@ type GridTableProps = Readonly<{
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   isLoading: boolean;
+  isFetching?: boolean;
   isError: boolean;
   totalCount: number;
   editingCell: { rowId: string; fieldId: string; value: string } | null;
@@ -197,6 +198,7 @@ export function GridTable({
   hasNextPage,
   isFetchingNextPage,
   isLoading,
+  isFetching = false,
   isError,
   totalCount,
   editingCell,
@@ -345,10 +347,12 @@ export function GridTable({
   // Full row width (left pane + columns) — used in data rows
   const totalContentWidth = LEFT_PANE_WIDTH + totalColumnsWidth;
 
+  const showBlurOverlay = isFetching && !isFetchingNextPage && rowModels.length > 0;
+
   return (
     <>
       {/* ── Outer wrapper: header + data stacked vertically ── */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* ── Header row — lives OUTSIDE the scroll container so it never moves ── */}
         <div
           className="flex shrink-0 border-b border-[#d9dee7] bg-[#f2f4f8]"
@@ -446,6 +450,24 @@ export function GridTable({
           </div>
         </div>
 
+        {/* ── Blur overlay (Airtable-style) when switching tables ── */}
+        {showBlurOverlay && (
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-sm"
+            aria-hidden="true"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <div
+                className="h-8 w-8 animate-spin rounded-full border-2 border-[#d2d9e3] border-t-[#2a79ef]"
+                aria-label="Loading"
+              />
+              <span className="text-sm text-[#607082]">
+                Loading table...
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* ── Data scroll container (rows only, no header) ── */}
         <div
           ref={parentRef}
@@ -454,8 +476,14 @@ export function GridTable({
           onScroll={handleDataScroll}
         >
           {isLoading ? (
-            <div className="p-4 text-sm text-[#607082]">
-              Loading table rows...
+            <div className="flex flex-col items-center justify-center gap-3 py-12">
+              <div
+                className="h-8 w-8 animate-spin rounded-full border-2 border-[#d2d9e3] border-t-[#2a79ef]"
+                aria-label="Loading"
+              />
+              <span className="text-sm text-[#607082]">
+                Loading table rows...
+              </span>
             </div>
           ) : null}
           {isError ? (

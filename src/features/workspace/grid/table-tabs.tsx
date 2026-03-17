@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { TableSummary } from "./types";
 
@@ -270,7 +270,7 @@ function AddOrImportMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const btn = addButtonRef.current;
     if (btn) {
       const rect = btn.getBoundingClientRect();
@@ -295,6 +295,13 @@ function AddOrImportMenu({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose, addButtonRef]);
+
+  const handleStartFromScratch = () => {
+    onClose();
+    requestAnimationFrame(() => {
+      onStartFromScratch();
+    });
+  };
 
   return (
     <div
@@ -324,7 +331,7 @@ function AddOrImportMenu({
         <li role="menuitem" tabIndex={-1}>
           <button
             type="button"
-            onClick={onStartFromScratch}
+            onClick={handleStartFromScratch}
             className="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-black/5"
             style={{ color: FG_DEFAULT }}
             aria-label="Start from scratch"

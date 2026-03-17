@@ -714,6 +714,7 @@ export function BaseGridPageClient({
                 hasNextPage={gridQuery.hasNextPage ?? false}
                 isFetchingNextPage={gridQuery.isFetchingNextPage}
                 isLoading={gridQuery.isLoading}
+                isFetching={gridQuery.isFetching}
                 isError={gridQuery.isError}
                 totalCount={totalCount}
                 editingCell={editingCell}
