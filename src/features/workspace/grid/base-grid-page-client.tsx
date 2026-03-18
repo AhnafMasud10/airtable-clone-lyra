@@ -19,6 +19,7 @@ import { GridToolbar } from "./grid-toolbar";
 import { GridTable } from "./grid-table";
 import { RowContextMenu } from "./row-context-menu";
 import { ColumnContextMenu } from "./column-context-menu";
+import { EditFieldPanel } from "./create-field-panel";
 
 type BaseGridPageClientProps = Readonly<{
   baseId: string;
@@ -67,6 +68,10 @@ export function BaseGridPageClient({
     y: number;
     field: GridField;
     fieldIndex: number;
+  } | null>(null);
+  const [editFieldState, setEditFieldState] = useState<{
+    field: GridField;
+    position: { x: number; y: number };
   } | null>(null);
   const pendingCellUpdatesRef = useRef<
     Map<string, { fieldId: string; value: string }[]>
@@ -498,6 +503,38 @@ export function BaseGridPageClient({
 
   const deleteField = api.field.delete.useMutation({
     onSuccess: async () => {
+      if (!selectedTableId) return;
+      await utils.table.getGridWindow.invalidate(gridInput);
+    },
+  });
+
+  const updateField = api.field.update.useMutation({
+    onMutate: async (input) => {
+      const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
+      void utils.table.getGridWindow.cancel(gridInput);
+
+      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          pages: current.pages.map((page) => ({
+            ...page,
+            fields: page.fields.map((f) =>
+              f.id === input.fieldId
+                ? { ...f, ...(input.name ? { name: input.name } : {}), ...(input.type ? { type: input.type } : {}) }
+                : f,
+            ),
+          })),
+        };
+      });
+
+      return { previousGrid };
+    },
+    onError: (_error, _input, context) => {
+      if (!context?.previousGrid) return;
+      utils.table.getGridWindow.setInfiniteData(gridInput, context.previousGrid);
+    },
+    onSettled: async () => {
       if (!selectedTableId) return;
       await utils.table.getGridWindow.invalidate(gridInput);
     },
@@ -1207,10 +1244,18 @@ export function BaseGridPageClient({
     [],
   );
 
-  const handleEditField = useCallback((_fieldId: string) => {
-    setColumnContextMenu(null);
-    // TODO: Open edit field modal
-  }, []);
+  const handleEditField = useCallback(
+    (fieldId: string) => {
+      const field = allFieldsFromGrid.find((f) => f.id === fieldId);
+      if (!field) return;
+      const pos = columnContextMenu
+        ? { x: columnContextMenu.x, y: columnContextMenu.y }
+        : { x: window.innerWidth / 2, y: 200 };
+      setColumnContextMenu(null);
+      setEditFieldState({ field, position: pos });
+    },
+    [allFieldsFromGrid, columnContextMenu],
+  );
 
   const handleDuplicateField = useCallback(
     async (fieldId: string) => {
@@ -1800,6 +1845,16 @@ export function BaseGridPageClient({
                   onHideField={handleHideField}
                   onDeleteField={handleDeleteField}
                   onClose={() => setColumnContextMenu(null)}
+                />
+              )}
+              {editFieldState && (
+                <EditFieldPanel
+                  field={editFieldState.field}
+                  position={editFieldState.position}
+                  onSave={(fieldId, name) => {
+                    updateField.mutate({ fieldId, name });
+                  }}
+                  onClose={() => setEditFieldState(null)}
                 />
               )}
             </main>

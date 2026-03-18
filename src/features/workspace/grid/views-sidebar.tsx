@@ -20,74 +20,317 @@ type ViewsSidebarProps = Readonly<{
 
 function GridFeatureIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <rect x="2" y="2" width="12" height="12" rx="1.5" fill="none" stroke="rgb(22, 110, 225)" strokeWidth="1.2" />
-      <line x1="2" y1="6" x2="14" y2="6" stroke="rgb(22, 110, 225)" strokeWidth="1.2" />
-      <line x1="6" y1="6" x2="6" y2="14" stroke="rgb(22, 110, 225)" strokeWidth="1.2" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <rect
+        x="2"
+        y="2"
+        width="12"
+        height="12"
+        rx="1.5"
+        fill="none"
+        stroke="rgb(22, 110, 225)"
+        strokeWidth="1.2"
+      />
+      <line
+        x1="2"
+        y1="6"
+        x2="14"
+        y2="6"
+        stroke="rgb(22, 110, 225)"
+        strokeWidth="1.2"
+      />
+      <line
+        x1="6"
+        y1="6"
+        x2="6"
+        y2="14"
+        stroke="rgb(22, 110, 225)"
+        strokeWidth="1.2"
+      />
     </svg>
   );
 }
 
 function CalendarFeatureIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <rect x="2" y="3" width="12" height="11" rx="1.5" fill="none" stroke="rgb(213, 68, 1)" strokeWidth="1.2" />
-      <line x1="2" y1="7" x2="14" y2="7" stroke="rgb(213, 68, 1)" strokeWidth="1.2" />
-      <line x1="5" y1="2" x2="5" y2="4" stroke="rgb(213, 68, 1)" strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="11" y1="2" x2="11" y2="4" stroke="rgb(213, 68, 1)" strokeWidth="1.2" strokeLinecap="round" />
-      <rect x="4" y="9" width="2" height="1.5" rx="0.3" fill="rgb(213, 68, 1)" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <rect
+        x="2"
+        y="3"
+        width="12"
+        height="11"
+        rx="1.5"
+        fill="none"
+        stroke="rgb(213, 68, 1)"
+        strokeWidth="1.2"
+      />
+      <line
+        x1="2"
+        y1="7"
+        x2="14"
+        y2="7"
+        stroke="rgb(213, 68, 1)"
+        strokeWidth="1.2"
+      />
+      <line
+        x1="5"
+        y1="2"
+        x2="5"
+        y2="4"
+        stroke="rgb(213, 68, 1)"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <line
+        x1="11"
+        y1="2"
+        x2="11"
+        y2="4"
+        stroke="rgb(213, 68, 1)"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <rect
+        x="4"
+        y="9"
+        width="2"
+        height="1.5"
+        rx="0.3"
+        fill="rgb(213, 68, 1)"
+      />
     </svg>
   );
 }
 
 function GalleryFeatureIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <rect x="2" y="2" width="5" height="5" rx="1" fill="none" stroke="rgb(124, 55, 239)" strokeWidth="1.2" />
-      <rect x="9" y="2" width="5" height="5" rx="1" fill="none" stroke="rgb(124, 55, 239)" strokeWidth="1.2" />
-      <rect x="2" y="9" width="5" height="5" rx="1" fill="none" stroke="rgb(124, 55, 239)" strokeWidth="1.2" />
-      <rect x="9" y="9" width="5" height="5" rx="1" fill="none" stroke="rgb(124, 55, 239)" strokeWidth="1.2" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <rect
+        x="2"
+        y="2"
+        width="5"
+        height="5"
+        rx="1"
+        fill="none"
+        stroke="rgb(124, 55, 239)"
+        strokeWidth="1.2"
+      />
+      <rect
+        x="9"
+        y="2"
+        width="5"
+        height="5"
+        rx="1"
+        fill="none"
+        stroke="rgb(124, 55, 239)"
+        strokeWidth="1.2"
+      />
+      <rect
+        x="2"
+        y="9"
+        width="5"
+        height="5"
+        rx="1"
+        fill="none"
+        stroke="rgb(124, 55, 239)"
+        strokeWidth="1.2"
+      />
+      <rect
+        x="9"
+        y="9"
+        width="5"
+        height="5"
+        rx="1"
+        fill="none"
+        stroke="rgb(124, 55, 239)"
+        strokeWidth="1.2"
+      />
     </svg>
   );
 }
 
 function KanbanFeatureIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <rect x="2" y="2" width="3.5" height="12" rx="0.8" fill="none" stroke="rgb(4, 138, 14)" strokeWidth="1.2" />
-      <rect x="6.25" y="2" width="3.5" height="8" rx="0.8" fill="none" stroke="rgb(4, 138, 14)" strokeWidth="1.2" />
-      <rect x="10.5" y="2" width="3.5" height="10" rx="0.8" fill="none" stroke="rgb(4, 138, 14)" strokeWidth="1.2" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <rect
+        x="2"
+        y="2"
+        width="3.5"
+        height="12"
+        rx="0.8"
+        fill="none"
+        stroke="rgb(4, 138, 14)"
+        strokeWidth="1.2"
+      />
+      <rect
+        x="6.25"
+        y="2"
+        width="3.5"
+        height="8"
+        rx="0.8"
+        fill="none"
+        stroke="rgb(4, 138, 14)"
+        strokeWidth="1.2"
+      />
+      <rect
+        x="10.5"
+        y="2"
+        width="3.5"
+        height="10"
+        rx="0.8"
+        fill="none"
+        stroke="rgb(4, 138, 14)"
+        strokeWidth="1.2"
+      />
     </svg>
   );
 }
 
 function FormFeatureIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <rect x="2" y="2" width="12" height="12" rx="1.5" fill="none" stroke="rgb(221, 4, 168)" strokeWidth="1.2" />
-      <line x1="5" y1="5.5" x2="11" y2="5.5" stroke="rgb(221, 4, 168)" strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="5" y1="8" x2="11" y2="8" stroke="rgb(221, 4, 168)" strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="5" y1="10.5" x2="9" y2="10.5" stroke="rgb(221, 4, 168)" strokeWidth="1.2" strokeLinecap="round" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <rect
+        x="2"
+        y="2"
+        width="12"
+        height="12"
+        rx="1.5"
+        fill="none"
+        stroke="rgb(221, 4, 168)"
+        strokeWidth="1.2"
+      />
+      <line
+        x1="5"
+        y1="5.5"
+        x2="11"
+        y2="5.5"
+        stroke="rgb(221, 4, 168)"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <line
+        x1="5"
+        y1="8"
+        x2="11"
+        y2="8"
+        stroke="rgb(221, 4, 168)"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <line
+        x1="5"
+        y1="10.5"
+        x2="9"
+        y2="10.5"
+        stroke="rgb(221, 4, 168)"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
 
 function TimelineFeatureIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <path d="M2 4h12v8H2z" fill="none" stroke="rgb(220, 4, 59)" strokeWidth="1.2" />
-      <path d="M2 8h12M6 4v8M10 4v8" stroke="rgb(220, 4, 59)" strokeWidth="1.2" fill="none" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <path
+        d="M2 4h12v8H2z"
+        fill="none"
+        stroke="rgb(220, 4, 59)"
+        strokeWidth="1.2"
+      />
+      <path
+        d="M2 8h12M6 4v8M10 4v8"
+        stroke="rgb(220, 4, 59)"
+        strokeWidth="1.2"
+        fill="none"
+      />
     </svg>
   );
 }
 
 function ListFeatureIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <rect x="2" y="2" width="12" height="12" rx="1.5" fill="none" stroke="rgb(13, 82, 172)" strokeWidth="1.2" />
-      <line x1="5" y1="5.5" x2="11" y2="5.5" stroke="rgb(13, 82, 172)" strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="5" y1="8" x2="11" y2="8" stroke="rgb(13, 82, 172)" strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="5" y1="10.5" x2="11" y2="10.5" stroke="rgb(13, 82, 172)" strokeWidth="1.2" strokeLinecap="round" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <rect
+        x="2"
+        y="2"
+        width="12"
+        height="12"
+        rx="1.5"
+        fill="none"
+        stroke="rgb(13, 82, 172)"
+        strokeWidth="1.2"
+      />
+      <line
+        x1="5"
+        y1="5.5"
+        x2="11"
+        y2="5.5"
+        stroke="rgb(13, 82, 172)"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <line
+        x1="5"
+        y1="8"
+        x2="11"
+        y2="8"
+        stroke="rgb(13, 82, 172)"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <line
+        x1="5"
+        y1="10.5"
+        x2="11"
+        y2="10.5"
+        stroke="rgb(13, 82, 172)"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
       <circle cx="3.5" cy="5.5" r="0.6" fill="rgb(13, 82, 172)" />
       <circle cx="3.5" cy="8" r="0.6" fill="rgb(13, 82, 172)" />
       <circle cx="3.5" cy="10.5" r="0.6" fill="rgb(13, 82, 172)" />
@@ -97,67 +340,205 @@ function ListFeatureIcon() {
 
 function GanttFeatureIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <rect x="3" y="3" width="7" height="2.5" rx="0.8" fill="none" stroke="rgb(13, 127, 120)" strokeWidth="1.2" />
-      <rect x="5" y="6.75" width="8" height="2.5" rx="0.8" fill="none" stroke="rgb(13, 127, 120)" strokeWidth="1.2" />
-      <rect x="4" y="10.5" width="6" height="2.5" rx="0.8" fill="none" stroke="rgb(13, 127, 120)" strokeWidth="1.2" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <rect
+        x="3"
+        y="3"
+        width="7"
+        height="2.5"
+        rx="0.8"
+        fill="none"
+        stroke="rgb(13, 127, 120)"
+        strokeWidth="1.2"
+      />
+      <rect
+        x="5"
+        y="6.75"
+        width="8"
+        height="2.5"
+        rx="0.8"
+        fill="none"
+        stroke="rgb(13, 127, 120)"
+        strokeWidth="1.2"
+      />
+      <rect
+        x="4"
+        y="10.5"
+        width="6"
+        height="2.5"
+        rx="0.8"
+        fill="none"
+        stroke="rgb(13, 127, 120)"
+        strokeWidth="1.2"
+      />
     </svg>
   );
 }
 
 function UsersThreeIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
       <circle cx="8" cy="5" r="2" />
-      <path d="M4.5 13c0-2 1.6-3.5 3.5-3.5s3.5 1.5 3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <path
+        d="M4.5 13c0-2 1.6-3.5 3.5-3.5s3.5 1.5 3.5 3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
       <circle cx="3.5" cy="6.5" r="1.5" />
-      <path d="M1 12.5c0-1.5 1.1-2.5 2.5-2.5" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+      <path
+        d="M1 12.5c0-1.5 1.1-2.5 2.5-2.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1"
+        strokeLinecap="round"
+      />
       <circle cx="12.5" cy="6.5" r="1.5" />
-      <path d="M15 12.5c0-1.5-1.1-2.5-2.5-2.5" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+      <path
+        d="M15 12.5c0-1.5-1.1-2.5-2.5-2.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
 
 function UserIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
       <circle cx="8" cy="5" r="2.5" />
-      <path d="M4 14c0-2.2 1.8-4 4-4s4 1.8 4 4" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <path
+        d="M4 14c0-2.2 1.8-4 4-4s4 1.8 4 4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
 
 function LockIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <rect x="4" y="7" width="8" height="6" rx="1.2" fill="none" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M6 7V5a2 2 0 1 1 4 0v2" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <rect
+        x="4"
+        y="7"
+        width="8"
+        height="6"
+        rx="1.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <path
+        d="M6 7V5a2 2 0 1 1 4 0v2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
 
 // ── View type options ────────────────────────────────────────────────
 
-const VIEW_TYPE_OPTIONS: { id: string; label: string; type: string; icon: React.ReactNode }[] = [
+const VIEW_TYPE_OPTIONS: {
+  id: string;
+  label: string;
+  type: string;
+  icon: React.ReactNode;
+}[] = [
   { id: "grid", label: "Grid", type: "GRID", icon: <GridFeatureIcon /> },
-  { id: "calendar", label: "Calendar", type: "CALENDAR", icon: <CalendarFeatureIcon /> },
-  { id: "gallery", label: "Gallery", type: "GALLERY", icon: <GalleryFeatureIcon /> },
-  { id: "kanban", label: "Kanban", type: "KANBAN", icon: <KanbanFeatureIcon /> },
-  { id: "timeline", label: "Timeline", type: "GRID", icon: <TimelineFeatureIcon /> },
+  {
+    id: "calendar",
+    label: "Calendar",
+    type: "CALENDAR",
+    icon: <CalendarFeatureIcon />,
+  },
+  {
+    id: "gallery",
+    label: "Gallery",
+    type: "GALLERY",
+    icon: <GalleryFeatureIcon />,
+  },
+  {
+    id: "kanban",
+    label: "Kanban",
+    type: "KANBAN",
+    icon: <KanbanFeatureIcon />,
+  },
+  {
+    id: "timeline",
+    label: "Timeline",
+    type: "GRID",
+    icon: <TimelineFeatureIcon />,
+  },
   { id: "list", label: "List", type: "GRID", icon: <ListFeatureIcon /> },
   { id: "gantt", label: "Gantt", type: "GRID", icon: <GanttFeatureIcon /> },
 ];
 
-const FORM_OPTION = { id: "form", label: "Form", type: "FORM", icon: <FormFeatureIcon /> };
+const FORM_OPTION = {
+  id: "form",
+  label: "Form",
+  type: "FORM",
+  icon: <FormFeatureIcon />,
+};
 
 const ALL_OPTIONS = [...VIEW_TYPE_OPTIONS, FORM_OPTION];
 
 // ── Permission descriptions ──────────────────────────────────────────
 
 const PERMISSION_OPTIONS = [
-  { id: "collaborative", label: "Collaborative", icon: <UsersThreeIcon />, description: "All collaborators can edit the configuration" },
-  { id: "personal", label: "Personal", icon: <UserIcon />, description: "Only you can edit the configuration" },
-  { id: "locked", label: "Locked", icon: <LockIcon />, description: "No one can edit the configuration" },
+  {
+    id: "collaborative",
+    label: "Collaborative",
+    icon: <UsersThreeIcon />,
+    description: "All collaborators can edit the configuration",
+  },
+  {
+    id: "personal",
+    label: "Personal",
+    icon: <UserIcon />,
+    description: "Only you can edit the configuration",
+  },
+  {
+    id: "locked",
+    label: "Locked",
+    icon: <LockIcon />,
+    description: "No one can edit the configuration",
+  },
 ] as const;
 
 // ── Shared icons ─────────────────────────────────────────────────────
@@ -168,7 +549,14 @@ function viewIcon(type: string) {
 
 function PlusIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
       <path d="M8 3a.5.5 0 0 1 .5.5V7.5H12a.5.5 0 0 1 0 1H8.5v4a.5.5 0 0 1-1 0V8.5H4a.5.5 0 0 1 0-1h3.5V3.5A.5.5 0 0 1 8 3Z" />
     </svg>
   );
@@ -176,7 +564,14 @@ function PlusIcon() {
 
 function MagnifyingGlassIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
       <path d="M11.27 10.21a6 6 0 1 0-1.06 1.06l3.26 3.26a.75.75 0 1 0 1.06-1.06l-3.26-3.26ZM7 11.5a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9Z" />
     </svg>
   );
@@ -184,7 +579,18 @@ function MagnifyingGlassIcon() {
 
 function CogIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
       <circle cx="8" cy="8" r="2" />
       <path d="M8 1.5v1.25M8 13.25v1.25M3.4 3.4l.9.9M11.7 11.7l.9.9M1.5 8h1.25M13.25 8h1.25M3.4 12.6l.9-.9M11.7 4.3l.9-.9" />
     </svg>
@@ -193,7 +599,13 @@ function CogIcon() {
 
 function OverflowIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none text-[rgb(97,102,112)]" style={{ shapeRendering: "geometricPrecision" }}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none text-[rgb(97,102,112)]"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
       <circle cx="4" cy="8" r="1.25" fill="currentColor" />
       <circle cx="8" cy="8" r="1.25" fill="currentColor" />
       <circle cx="12" cy="8" r="1.25" fill="currentColor" />
@@ -203,7 +615,14 @@ function OverflowIcon() {
 
 function DragHandleIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
       <circle cx="6" cy="4" r="1" />
       <circle cx="10" cy="4" r="1" />
       <circle cx="6" cy="8" r="1" />
@@ -219,11 +638,15 @@ function DragHandleIcon() {
 const FONT_FAMILY =
   "-apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif";
 
-const POPOVER_SHADOW = "0 0 0 1px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.12)";
+const POPOVER_SHADOW =
+  "0 0 0 1px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.12)";
 
 // ── useClickOutside hook ─────────────────────────────────────────────
 
-function useClickOutside(ref: React.RefObject<HTMLElement | null>, onClose: () => void) {
+function useClickOutside(
+  ref: React.RefObject<HTMLElement | null>,
+  onClose: () => void,
+) {
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -258,7 +681,9 @@ function ConfigureViewDialog({
   onCancel: () => void;
 }) {
   const [viewName, setViewName] = useState(defaultName);
-  const [permission, setPermission] = useState<"collaborative" | "personal" | "locked">("collaborative");
+  const [permission, setPermission] = useState<
+    "collaborative" | "personal" | "locked"
+  >("collaborative");
   const dialogRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -268,7 +693,8 @@ function ConfigureViewDialog({
     inputRef.current?.select();
   }, []);
 
-  const selectedDescription = PERMISSION_OPTIONS.find((p) => p.id === permission)?.description ?? "";
+  const selectedDescription =
+    PERMISSION_OPTIONS.find((p) => p.id === permission)?.description ?? "";
 
   return createPortal(
     <div
@@ -307,7 +733,9 @@ function ConfigureViewDialog({
         </div>
 
         {/* Who can edit */}
-        <div className="pb-1 text-[15px] font-semibold text-[rgb(29,31,37)]">Who can edit</div>
+        <div className="pb-1 text-[15px] font-semibold text-[rgb(29,31,37)]">
+          Who can edit
+        </div>
 
         <div className="pb-1">
           {/* Radio group */}
@@ -327,7 +755,10 @@ function ConfigureViewDialog({
                   style={{
                     width: 16,
                     height: 16,
-                    borderColor: permission === opt.id ? "rgb(22, 110, 225)" : "rgb(174, 178, 186)",
+                    borderColor:
+                      permission === opt.id
+                        ? "rgb(22, 110, 225)"
+                        : "rgb(174, 178, 186)",
                     backgroundColor: "white",
                   }}
                 >
@@ -343,13 +774,17 @@ function ConfigureViewDialog({
                   )}
                 </span>
                 <span className="mx-1 flex-none">{opt.icon}</span>
-                <span className="mr-1 text-[13px] text-[rgb(29,31,37)]">{opt.label}</span>
+                <span className="mr-1 text-[13px] text-[rgb(29,31,37)]">
+                  {opt.label}
+                </span>
               </button>
             ))}
           </div>
 
           {/* Description */}
-          <div className="mt-2 text-[12px] text-[rgb(97,102,112)]">{selectedDescription}</div>
+          <div className="mt-2 text-[12px] text-[rgb(97,102,112)]">
+            {selectedDescription}
+          </div>
         </div>
 
         {/* Action buttons */}
@@ -423,7 +858,11 @@ function CreateViewMenu({
           </li>
         ))}
 
-        <li role="presentation" className="mx-1 my-1" style={{ height: 1, backgroundColor: "rgb(229, 233, 240)" }} />
+        <li
+          role="presentation"
+          className="mx-1 my-1"
+          style={{ height: 1, backgroundColor: "rgb(229, 233, 240)" }}
+        />
 
         <li
           role="menuitem"
@@ -433,7 +872,9 @@ function CreateViewMenu({
           onClick={() => onSelect(FORM_OPTION.id, FORM_OPTION.type)}
         >
           <span className="mr-2 flex-none">{FORM_OPTION.icon}</span>
-          <span className="flex-auto truncate select-none">{FORM_OPTION.label}</span>
+          <span className="flex-auto truncate select-none">
+            {FORM_OPTION.label}
+          </span>
         </li>
       </ul>
     </div>,
@@ -445,33 +886,93 @@ function CreateViewMenu({
 
 function StarIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <path d="M8 1.5l1.76 3.57 3.94.57-2.85 2.78.67 3.93L8 10.67l-3.52 1.68.67-3.93L2.3 5.64l3.94-.57L8 1.5z" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <path
+        d="M8 1.5l1.76 3.57 3.94.57-2.85 2.78.67 3.93L8 10.67l-3.52 1.68.67-3.93L2.3 5.64l3.94-.57L8 1.5z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
 
 function PencilIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <path d="M11.5 2.5a1.41 1.41 0 0 1 2 2L5.5 12.5l-3 1 1-3 8-8z" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <path
+        d="M11.5 2.5a1.41 1.41 0 0 1 2 2L5.5 12.5l-3 1 1-3 8-8z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
 
 function CopyIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <rect x="5" y="5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M11 3H4.5A1.5 1.5 0 0 0 3 4.5V11" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <rect
+        x="5"
+        y="5"
+        width="8"
+        height="8"
+        rx="1.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <path
+        d="M11 3H4.5A1.5 1.5 0 0 0 3 4.5V11"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
 
 function TrashIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <path d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M5 4.5v8a1.5 1.5 0 0 0 1.5 1.5h3A1.5 1.5 0 0 0 11 12.5v-8" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <path
+        d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M5 4.5v8a1.5 1.5 0 0 0 1.5 1.5h3A1.5 1.5 0 0 0 11 12.5v-8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -521,31 +1022,41 @@ function ViewContextMenu({
         <li
           role="menuitem"
           tabIndex={-1}
-          className="flex w-full cursor-pointer items-center rounded py-1.5 px-2 hover:bg-[rgb(241,243,246)]"
+          className="flex w-full cursor-pointer items-center rounded px-2 py-1.5 hover:bg-[rgb(241,243,246)]"
           style={{ fontSize: 13, color: "rgb(29, 31, 37)" }}
           onClick={() => {
             onClose();
           }}
         >
-          <span className="mr-2 flex-none text-[rgb(29,31,37)]"><StarIcon /></span>
-          <span className="flex-auto truncate select-none">Add to &apos;My favorites&apos;</span>
+          <span className="mr-2 flex-none text-[rgb(29,31,37)]">
+            <StarIcon />
+          </span>
+          <span className="flex-auto truncate select-none">
+            Add to &apos;My favorites&apos;
+          </span>
         </li>
 
         {/* Separator */}
-        <li role="presentation" className="mx-2 my-1" style={{ height: 1, backgroundColor: "rgb(229, 233, 240)" }} />
+        <li
+          role="presentation"
+          className="mx-2 my-1"
+          style={{ height: 1, backgroundColor: "rgb(229, 233, 240)" }}
+        />
 
         {/* Rename */}
         <li
           role="menuitem"
           tabIndex={-1}
-          className="flex w-full cursor-pointer items-center rounded py-1.5 px-2 hover:bg-[rgb(241,243,246)]"
+          className="flex w-full cursor-pointer items-center rounded px-2 py-1.5 hover:bg-[rgb(241,243,246)]"
           style={{ fontSize: 13, color: "rgb(29, 31, 37)" }}
           onClick={() => {
             onRename(view);
             onClose();
           }}
         >
-          <span className="mr-2 flex-none text-[rgb(29,31,37)]"><PencilIcon /></span>
+          <span className="mr-2 flex-none text-[rgb(29,31,37)]">
+            <PencilIcon />
+          </span>
           <span className="flex-auto truncate select-none">Rename view</span>
         </li>
 
@@ -553,14 +1064,16 @@ function ViewContextMenu({
         <li
           role="menuitem"
           tabIndex={-1}
-          className="flex w-full cursor-pointer items-center rounded py-1.5 px-2 hover:bg-[rgb(241,243,246)]"
+          className="flex w-full cursor-pointer items-center rounded px-2 py-1.5 hover:bg-[rgb(241,243,246)]"
           style={{ fontSize: 13, color: "rgb(29, 31, 37)" }}
           onClick={() => {
             onDuplicate(view);
             onClose();
           }}
         >
-          <span className="mr-2 flex-none text-[rgb(29,31,37)]"><CopyIcon /></span>
+          <span className="mr-2 flex-none text-[rgb(29,31,37)]">
+            <CopyIcon />
+          </span>
           <span className="flex-auto truncate select-none">Duplicate view</span>
         </li>
 
@@ -568,8 +1081,11 @@ function ViewContextMenu({
         <li
           role="menuitem"
           tabIndex={-1}
-          className={`flex w-full items-center rounded py-1.5 px-2 ${canDelete ? "cursor-pointer hover:bg-[rgb(241,243,246)]" : "opacity-50 cursor-not-allowed"}`}
-          style={{ fontSize: 13, color: canDelete ? "rgb(200, 50, 50)" : "rgb(200, 130, 130)" }}
+          className={`flex w-full items-center rounded px-2 py-1.5 ${canDelete ? "cursor-pointer hover:bg-[rgb(241,243,246)]" : "cursor-not-allowed opacity-50"}`}
+          style={{
+            fontSize: 13,
+            color: canDelete ? "rgb(200, 50, 50)" : "rgb(200, 130, 130)",
+          }}
           aria-disabled={!canDelete}
           onClick={() => {
             if (!canDelete) return;
@@ -577,7 +1093,9 @@ function ViewContextMenu({
             onClose();
           }}
         >
-          <span className="mr-2 flex-none"><TrashIcon /></span>
+          <span className="mr-2 flex-none">
+            <TrashIcon />
+          </span>
           <span className="flex-auto truncate select-none">Delete view</span>
         </li>
       </ul>
@@ -603,9 +1121,15 @@ export function ViewsSidebar({
 }: ViewsSidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [configState, setConfigState] = useState<{ typeId: string; type: string } | null>(null);
+  const [configState, setConfigState] = useState<{
+    typeId: string;
+    type: string;
+  } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const [contextMenu, setContextMenu] = useState<{ view: ViewItem; rect: DOMRect } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    view: ViewItem;
+    rect: DOMRect;
+  } | null>(null);
   const [renamingViewId, setRenamingViewId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
@@ -627,13 +1151,10 @@ export function ViewsSidebar({
     [views],
   );
 
-  const handleTypeSelect = useCallback(
-    (typeId: string, type: string) => {
-      setMenuOpen(false);
-      setConfigState({ typeId, type });
-    },
-    [],
-  );
+  const handleTypeSelect = useCallback((typeId: string, type: string) => {
+    setMenuOpen(false);
+    setConfigState({ typeId, type });
+  }, []);
 
   const handleConfirmCreate = useCallback(
     (name: string) => {
@@ -707,7 +1228,7 @@ export function ViewsSidebar({
             <div className="relative flex w-full items-center">
               <input
                 type="text"
-                className="h-7 w-full rounded bg-white pl-7 pr-8 text-[13px] outline-none focus:ring-1 focus:ring-[rgb(22,110,225)]"
+                className="h-7 w-full rounded bg-white pr-8 pl-7 text-[13px] outline-none focus:ring-1 focus:ring-[rgb(22,110,225)]"
                 placeholder="Find a view"
                 aria-label="Find a view"
                 value={searchQuery}
@@ -730,7 +1251,7 @@ export function ViewsSidebar({
         </div>
 
         {/* View list */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="flex-1 overflow-x-hidden overflow-y-auto">
           <ul>
             {filteredViews.map((view) => {
               const isActive = selectedViewId === view.id;
@@ -750,7 +1271,7 @@ export function ViewsSidebar({
                     }}
                   >
                     <div className="flex items-center">
-                      <div className="flex flex-1 items-center min-w-0">
+                      <div className="flex min-w-0 flex-1 items-center">
                         <span className="mr-2 flex shrink-0 items-center">
                           {viewIcon(view.type)}
                         </span>
@@ -772,7 +1293,10 @@ export function ViewsSidebar({
                               }
                             }}
                             onBlur={() => {
-                              if (renameValue.trim() && renameValue.trim() !== view.name) {
+                              if (
+                                renameValue.trim() &&
+                                renameValue.trim() !== view.name
+                              ) {
                                 onRenameView(view.id, renameValue.trim());
                               }
                               setRenamingViewId(null);
@@ -793,14 +1317,18 @@ export function ViewsSidebar({
                           </span>
                         )}
                       </div>
-                      <span className={`flex items-center gap-0.5 ${isActive ? "visible" : "invisible group-hover:visible"}`}>
+                      <span
+                        className={`flex items-center gap-0.5 ${isActive ? "visible" : "invisible group-hover:visible"}`}
+                      >
                         <span
-                          className="flex items-center justify-center rounded hover:bg-black/10 cursor-pointer"
+                          className="flex cursor-pointer items-center justify-center rounded hover:bg-black/10"
                           style={{ width: 20, height: 20 }}
                           aria-label="View options"
                           onClick={(e) => {
                             e.stopPropagation();
-                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                            const rect = (
+                              e.currentTarget as HTMLElement
+                            ).getBoundingClientRect();
                             setContextMenu({ view, rect });
                           }}
                         >
@@ -837,7 +1365,7 @@ export function ViewsSidebar({
 
       {/* Resize handle */}
       <div
-        className="absolute bottom-0 right-0 top-0 cursor-col-resize bg-transparent hover:bg-[rgb(22,110,225)]"
+        className="absolute top-0 right-0 bottom-0 cursor-col-resize bg-transparent hover:bg-[rgb(22,110,225)]"
         style={{ width: 3 }}
       />
     </nav>

@@ -632,3 +632,242 @@ export function CreateFieldPanel({
 
   return createPortal(panel, document.body);
 }
+
+/* ── Edit Field Panel ── */
+
+type EditFieldPanelProps = Readonly<{
+  field: { id: string; name: string; type: string };
+  position: { x: number; y: number };
+  onSave: (fieldId: string, name: string) => void;
+  onClose: () => void;
+}>;
+
+function getEditFieldTypeLabel(type: string): string {
+  switch (type) {
+    case "NUMBER":
+      return "Number";
+    case "LONG_TEXT":
+      return "Long text";
+    case "USER":
+    case "COLLABORATOR":
+      return "User";
+    case "SELECT":
+    case "SINGLE_SELECT":
+      return "Single select";
+    case "ATTACHMENT":
+    case "MULTIPLE_ATTACHMENT":
+      return "Attachment";
+    case "DATE":
+      return "Date";
+    case "AI_TEXT":
+      return "Long text (agent)";
+    default:
+      return "Single line text";
+  }
+}
+
+function getEditFieldDescription(type: string): string {
+  switch (type) {
+    case "NUMBER":
+      return "Enter a number, or prefill each new cell with a default value.";
+    case "LONG_TEXT":
+      return "Enter multiple lines of text.";
+    default:
+      return "Enter text.";
+  }
+}
+
+function EditFieldTypeIcon({ type }: Readonly<{ type: string }>) {
+  const props = {
+    width: 16,
+    height: 16,
+    viewBox: "0 0 16 16",
+    fill: "currentColor",
+    className: "flex-none",
+    style: { shapeRendering: "geometricPrecision" as const },
+  };
+  switch (type) {
+    case "NUMBER":
+      return (
+        <svg {...props}>
+          <path d="M5.5 1a.5.5 0 0 1 .492.592L5.73 3H8a.5.5 0 0 1 0 1H5.564l-.5 3H7.5a.5.5 0 0 1 0 1H4.897l-.39 2.408a.5.5 0 1 1-.986-.16L3.864 8H2a.5.5 0 0 1 0-1h2.03l.5-3H3a.5.5 0 0 1 0-1h1.697l.31-1.908A.5.5 0 0 1 5.5 1Zm5 0a.5.5 0 0 1 .492.592L10.73 3H13a.5.5 0 0 1 0 1h-2.436l-.5 3H12.5a.5.5 0 0 1 0 1H9.897l-.39 2.408a.5.5 0 1 1-.986-.16L8.864 8H7a.5.5 0 0 1 0-1h2.03l.5-3H8a.5.5 0 0 1 0-1h1.697l.31-1.908A.5.5 0 0 1 10.5 1Z" />
+        </svg>
+      );
+    case "LONG_TEXT":
+      return (
+        <svg {...props}>
+          <path d="M2 4a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 4Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 7Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 10Zm0 3a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 2 13Z" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...props}>
+          <path d="M2.5 3A.5.5 0 0 1 3 2.5h10a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H8.5V13a.5.5 0 0 1-1 0V4.5H3a.5.5 0 0 1-.5-.5V3Z" />
+        </svg>
+      );
+  }
+}
+
+export function EditFieldPanel({
+  field,
+  position,
+  onSave,
+  onClose,
+}: EditFieldPanelProps) {
+  const [fieldName, setFieldName] = useState(field.name);
+  const [showDescription, setShowDescription] = useState(false);
+  const [description, setDescription] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const typeLabel = getEditFieldTypeLabel(field.type);
+  const typeDescription = getEditFieldDescription(field.type);
+
+  useEffect(() => {
+    inputRef.current?.select();
+  }, []);
+
+  useEffect(() => {
+    function handleMouseDown(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [onClose]);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  const handleSave = () => {
+    const trimmed = fieldName.trim();
+    if (trimmed && trimmed !== field.name) {
+      onSave(field.id, trimmed);
+    }
+    onClose();
+  };
+
+  const top = Math.min(position.y, window.innerHeight - 320);
+  const left = Math.min(position.x - 200, window.innerWidth - 420);
+
+  const panel = (
+    <div
+      ref={panelRef}
+      data-popup
+      role="dialog"
+      aria-label="Field customization"
+      className="rounded-xl overflow-auto absolute bg-white"
+      style={{
+        position: "fixed",
+        top,
+        left: Math.max(4, left),
+        width: 400,
+        minWidth: 400,
+        maxWidth: 900,
+        zIndex: 9999,
+        fontFamily:
+          "-apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        boxShadow:
+          "0 0 0 1px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.12)",
+      }}
+    >
+      <div className="flex flex-col">
+        {/* Field name input */}
+        <div className="px-4 pt-4 pb-1">
+          <div className="flex w-full items-center">
+            <input
+              ref={inputRef}
+              type="text"
+              value={fieldName}
+              onChange={(e) => setFieldName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSave();
+              }}
+              placeholder="Field name (optional)"
+              className="w-full rounded-lg border bg-white px-3 py-2.5 text-[13px] text-[#1d1f25] placeholder-[#969ba5] outline-none focus:border-[#2a79ef] focus:ring-1 focus:ring-[#2a79ef]"
+              style={{ borderColor: "#e0e5ed" }}
+              autoFocus
+              aria-label="Field name (optional)"
+            />
+          </div>
+        </div>
+
+        {/* Field type display (read-only for now) */}
+        <div className="flex px-4 pb-1" style={{ height: 32 }}>
+          <div
+            className="flex flex-1 items-center gap-2 overflow-hidden rounded-lg border bg-white px-3 py-2 shadow-sm"
+            style={{ borderColor: "#e0e5ed" }}
+          >
+            <span className="flex-none text-[#616670]">
+              <EditFieldTypeIcon type={field.type} />
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#1d1f25]">
+              {typeLabel}
+            </span>
+            <span className="flex-none text-[#97a0af]">
+              <IconChevronDown />
+            </span>
+          </div>
+        </div>
+
+        {/* Type description */}
+        <p className="mt-1 px-4 text-[13px] text-[#616670]">
+          {typeDescription}
+        </p>
+
+        {/* Description field */}
+        {showDescription && (
+          <div className="px-4 pt-2">
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Field description"
+              className="w-full rounded-lg border bg-white px-3 py-2 text-[13px] outline-none focus:border-[#2a79ef] focus:ring-1 focus:ring-[#2a79ef]"
+              style={{ borderColor: "#e0e5ed" }}
+            />
+          </div>
+        )}
+
+        {/* Action bar */}
+        <div className="flex shrink-0 items-center justify-between px-4 pt-4 pb-4">
+          <button
+            type="button"
+            onClick={() => setShowDescription((v) => !v)}
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] text-[#1d1f25] hover:bg-[#f7f8fa]"
+            aria-label="Add description"
+          >
+            <IconPlus />
+            <span>
+              {showDescription ? "Remove description" : "Add description"}
+            </span>
+          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg px-3 py-2 text-[13px] text-[#1d1f25] hover:bg-[#f7f8fa]"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="rounded-lg bg-[#2a79ef] px-3 py-2 text-[13px] font-semibold text-white shadow-sm hover:bg-[#2360c4]"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  return createPortal(panel, document.body);
+}

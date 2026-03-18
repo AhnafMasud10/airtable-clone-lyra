@@ -8,7 +8,6 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   type KeyboardEvent,
-  type UIEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -352,15 +351,15 @@ export function GridTable({
 
   const startColumnDrag = useCallback(
     (fieldIndex: number, clientX: number) => {
-      const headerEl = headerScrollRef.current;
+      const scrollEl = parentRef.current;
       const wrapper = wrapperRef.current;
-      if (!headerEl || !wrapper) return;
+      if (!scrollEl || !wrapper) return;
 
-      const headerRect = headerEl.getBoundingClientRect();
+      const scrollRect = scrollEl.getBoundingClientRect();
       const wrapperRect = wrapper.getBoundingClientRect();
-      const scrollLeft = headerEl.scrollLeft;
+      const scrollLeft = scrollEl.scrollLeft;
       const colLeft =
-        (columnLeftOffsets[fieldIndex] ?? 0) - scrollLeft + headerRect.left;
+        (columnLeftOffsets[fieldIndex] ?? 0) + LEFT_PANE_WIDTH - scrollLeft + scrollRect.left;
       const grabOffsetX = clientX - colLeft;
 
       dragFieldRef.current = fieldIndex;
@@ -380,9 +379,9 @@ export function GridTable({
           prev ? { ...prev, mouseX: ev.clientX } : null,
         );
 
-        const hRect = headerEl.getBoundingClientRect();
-        const sLeft = headerEl.scrollLeft;
-        const relativeX = ev.clientX - hRect.left + sLeft;
+        const sRect = scrollEl.getBoundingClientRect();
+        const sLeft = scrollEl.scrollLeft;
+        const relativeX = ev.clientX - sRect.left + sLeft - LEFT_PANE_WIDTH;
 
         let targetIdx = 0;
         for (let i = 0; i < columnLeftOffsets.length - 1; i++) {
@@ -590,13 +589,6 @@ export function GridTable({
   // Ref for the column-headers scroll container (kept in sync with data scroll)
   const headerScrollRef = useRef<HTMLDivElement>(null);
 
-  // Mirror horizontal scroll from data pane → header pane
-  const handleDataScroll = useCallback((e: UIEvent<HTMLDivElement>) => {
-    if (headerScrollRef.current) {
-      headerScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
-    }
-  }, []);
-
   // Width of just the columns area (no left pane) — used in the header scroller
   const totalColumnsWidth =
     fields.reduce((acc, f, i) => acc + getColumnWidth(f.id, i), 0) +
@@ -612,189 +604,173 @@ export function GridTable({
 
   return (
     <>
-      {/* ── Outer wrapper: header + data stacked vertically ── */}
+      {/* ── Outer wrapper: single scroll container for header + data ── */}
       <div ref={wrapperRef} className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        {/* ── Header row — Airtable-style headerAndDataRowContainer ── */}
-        <div
-          className="relative z-10 flex shrink-0 bg-white"
-          style={{ height: ROW_HEIGHT }}
-        >
-          {/* Frozen left pane — headerLeftPane with checkbox */}
-          <div
-            className="flex shrink-0 items-center justify-center border-r border-[#e6ebf2] bg-white"
-            style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
-          >
-            {(() => {
-              const allIds = table.getRowModel().rows.map((r) => r.original.id);
-              const allSelected =
-                allIds.length > 0 &&
-                allIds.every((id) => selectedRowIds.has(id));
-              const someSelected =
-                !allSelected && allIds.some((id) => selectedRowIds.has(id));
-              return (
-                <button
-                  type="button"
-                  onClick={() => onToggleAll(allIds)}
-                  className="flex h-[14px] w-[14px] items-center justify-center rounded-sm border bg-white text-white focus:outline-none"
-                  style={{
-                    borderColor:
-                      allSelected || someSelected ? "#2a79ef" : "#b2bac5",
-                    backgroundColor: allSelected ? "#2a79ef" : "white",
-                  }}
-                  aria-label="Select all rows"
-                >
-                  {allSelected && <IconCheckBold />}
-                  {someSelected && (
-                    <div className="h-[2px] w-[8px] rounded-sm bg-[#2a79ef]" />
-                  )}
-                </button>
-              );
-            })()}
-          </div>
-
-          {/* Column headers — headerRightPane, scrollLeft driven by data scroll */}
-          <div
-            ref={headerScrollRef}
-            className="flex-1 overflow-hidden bg-white"
-            style={{ height: ROW_HEIGHT }}
-          >
-            <div className="flex" style={{ minWidth: totalColumnsWidth }}>
-              {fields.map((field, i) => {
-                const colWidth = getColumnWidth(field.id, i);
-                const isDragging = dragCol?.fieldIndex === i;
-                const dragFrom = dragCol?.fieldIndex ?? null;
-                const isDropTarget = dropTargetIndex === i && dragFrom !== null && dragFrom !== i;
-                const indicatorSide = dragFrom !== null && dragFrom < i ? "right" : "left";
-                const isFieldFiltered = filteredFieldIds?.has(field.id);
-                const term = globalSearch?.trim().toLowerCase() ?? "";
-                const hasSearchMatchesInColumn =
-                  term.length > 0 && field.name.toLowerCase().includes(term);
-                const fieldTypeLabel = getFieldTypeLabel(field.type);
-                const isPrimary = i === 0;
-                return (
-                  <div
-                    key={field.id}
-                    data-columnid={field.id}
-                    data-columnindex={i}
-                    data-tutorial-selector-id="gridHeaderCell"
-                    data-primary={isPrimary ? "true" : undefined}
-                    onMouseDown={(e) => handleColumnHeaderMouseDown(e, field, i)}
-                    onContextMenu={(e) => e.preventDefault()}
-                    className="group relative flex shrink-0 items-center border-r border-[#e6ebf2] text-[#4f5d70]"
-                    style={{
-                      width: colWidth,
-                      height: ROW_HEIGHT,
-                      opacity: isDragging ? 0.35 : 1,
-                      cursor: dragCol
-                        ? "grabbing"
-                        : holdFieldIndex === i
-                          ? "grab"
-                          : "default",
-                      backgroundColor: hasSearchMatchesInColumn
-                        ? "#facc15"
-                        : isFieldFiltered
-                          ? "#e6f4df"
-                          : undefined,
-                    }}
-                  >
-                    {/* Drop indicator — blue line on insertion edge */}
-                    {isDropTarget && (
-                      <div
-                        className="pointer-events-none absolute top-0 bottom-0 z-30"
-                        style={{
-                          [indicatorSide]: 0,
-                          width: 2,
-                          backgroundColor: "#2a79ef",
-                        }}
-                      />
-                    )}
-                    {/* contentWrapper — Airtable-style structure */}
-                    <div className="flex min-w-0 flex-1 items-center gap-2 px-3">
-                      <div
-                        className="flex min-w-0 flex-1 items-center gap-2"
-                        aria-label={`${field.name} column header (${fieldTypeLabel} field)`}
-                      >
-                        <FieldTypeIcon type={field.type} />
-                        <span
-                          className="min-w-0 flex-1 overflow-hidden text-ellipsis text-[13px] font-semibold leading-4"
-                          style={{
-                            display: "-webkit-box",
-                            WebkitLineClamp: 1,
-                            WebkitBoxOrient: "vertical" as const,
-                            textOverflow: "ellipsis",
-                          }}
-                          title={field.name}
-                        >
-                          {field.name}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onColumnContextMenu) {
-                            onColumnContextMenu(e, field, i);
-                          }
-                        }}
-                        className="flex shrink-0 items-center justify-center rounded p-0.5 text-[#97a0af] opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[#e0e5ed] hover:text-[#4f5d70]"
-                        style={{ width: 20, height: 20 }}
-                        aria-label={`Open ${field.name} column menu`}
-                        data-tutorial-selector-id="openColumnMenuButton"
-                      >
-                        <IconChevronDown />
-                      </button>
-                    </div>
-                    {/* Resize handle — right edge */}
-                    <button
-                      type="button"
-                      aria-label={`Resize ${field.name} column`}
-                      className="absolute top-0 right-0 z-20 h-full w-1.5 cursor-col-resize border-0 bg-transparent p-0 opacity-0 transition-opacity group-hover:opacity-100"
-                      style={{ marginRight: -2 }}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleResizeStart(field.id, e.clientX, colWidth);
-                      }}
-                    >
-                      <span className="absolute right-0 top-0 h-full w-px bg-transparent group-hover:bg-[#2a79ef]" />
-                    </button>
-                  </div>
-                );
-              })}
-
-              {/* Add field "+" button — ghost cell style like Airtable */}
-              {!isLoading && (
-                <button
-                  ref={addButtonRef}
-                  type="button"
-                  onClick={() => setShowCreateFieldPanel(true)}
-                  className="flex shrink-0 items-center justify-center border-r border-[#e6ebf2] text-[#97a0af] hover:bg-[#edf0f5] hover:text-[#4f5d70]"
-                  style={{ width: ADD_FIELD_WIDTH, height: ROW_HEIGHT }}
-                  title="Add field"
-                  aria-label="add a field"
-                  data-tutorial-selector-id="gridHeaderAddFieldButton"
-                >
-                  <IconPlus />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Fixed bottom border under header ── */}
-        <div
-          className="shrink-0"
-          style={{ height: 1, backgroundColor: "#d2d9e3" }}
-          aria-hidden
-        />
-
-        {/* ── Data scroll container (rows only, no header) ── */}
+        {/* ── Unified scroll container — header sticks at top, scrolls horizontally with data ── */}
         <div
           ref={parentRef}
           className="relative min-h-0 flex-1 overflow-auto bg-white"
           style={{ overscrollBehavior: "none" }}
-          onScroll={handleDataScroll}
         >
+          {/* ── Sticky header row ── */}
+          <div
+            ref={headerScrollRef}
+            className="sticky top-0 z-10 flex bg-white"
+            style={{ height: ROW_HEIGHT, width: totalContentWidth, minWidth: totalContentWidth }}
+          >
+            {/* Frozen left pane — headerLeftPane with checkbox */}
+            <div
+              className="sticky left-0 z-20 flex shrink-0 items-center justify-center border-r border-b border-[#d2d9e3] bg-white"
+              style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
+            >
+              {(() => {
+                const allIds = table.getRowModel().rows.map((r) => r.original.id);
+                const allSelected =
+                  allIds.length > 0 &&
+                  allIds.every((id) => selectedRowIds.has(id));
+                const someSelected =
+                  !allSelected && allIds.some((id) => selectedRowIds.has(id));
+                return (
+                  <button
+                    type="button"
+                    onClick={() => onToggleAll(allIds)}
+                    className="flex h-[14px] w-[14px] items-center justify-center rounded-sm border bg-white text-white focus:outline-none"
+                    style={{
+                      borderColor:
+                        allSelected || someSelected ? "#2a79ef" : "#b2bac5",
+                      backgroundColor: allSelected ? "#2a79ef" : "white",
+                    }}
+                    aria-label="Select all rows"
+                  >
+                    {allSelected && <IconCheckBold />}
+                    {someSelected && (
+                      <div className="h-[2px] w-[8px] rounded-sm bg-[#2a79ef]" />
+                    )}
+                  </button>
+                );
+              })()}
+            </div>
+
+            {/* Column headers */}
+            {fields.map((field, i) => {
+              const colWidth = getColumnWidth(field.id, i);
+              const isDragging = dragCol?.fieldIndex === i;
+              const dragFrom = dragCol?.fieldIndex ?? null;
+              const isDropTarget = dropTargetIndex === i && dragFrom !== null && dragFrom !== i;
+              const indicatorSide = dragFrom !== null && dragFrom < i ? "right" : "left";
+              const isFieldFiltered = filteredFieldIds?.has(field.id);
+              const term = globalSearch?.trim().toLowerCase() ?? "";
+              const hasSearchMatchesInColumn =
+                term.length > 0 && field.name.toLowerCase().includes(term);
+              const fieldTypeLabel = getFieldTypeLabel(field.type);
+              const isPrimary = i === 0;
+              return (
+                <div
+                  key={field.id}
+                  data-columnid={field.id}
+                  data-columnindex={i}
+                  data-tutorial-selector-id="gridHeaderCell"
+                  data-primary={isPrimary ? "true" : undefined}
+                  onMouseDown={(e) => handleColumnHeaderMouseDown(e, field, i)}
+                  onContextMenu={(e) => e.preventDefault()}
+                  className="group relative flex shrink-0 items-center border-r border-b border-[#d2d9e3] text-[#4f5d70]"
+                  style={{
+                    width: colWidth,
+                    height: ROW_HEIGHT,
+                    opacity: isDragging ? 0.35 : 1,
+                    cursor: dragCol
+                      ? "grabbing"
+                      : holdFieldIndex === i
+                        ? "grab"
+                        : "default",
+                    backgroundColor: hasSearchMatchesInColumn
+                      ? "#facc15"
+                      : isFieldFiltered
+                        ? "#e6f4df"
+                        : "white",
+                  }}
+                >
+                  {/* Drop indicator — blue line on insertion edge */}
+                  {isDropTarget && (
+                    <div
+                      className="pointer-events-none absolute top-0 bottom-0 z-30"
+                      style={{
+                        [indicatorSide]: 0,
+                        width: 2,
+                        backgroundColor: "#2a79ef",
+                      }}
+                    />
+                  )}
+                  {/* contentWrapper — Airtable-style structure */}
+                  <div className="flex min-w-0 flex-1 items-center gap-2 px-3">
+                    <div
+                      className="flex min-w-0 flex-1 items-center gap-2"
+                      aria-label={`${field.name} column header (${fieldTypeLabel} field)`}
+                    >
+                      <FieldTypeIcon type={field.type} />
+                      <span
+                        className="min-w-0 flex-1 overflow-hidden text-ellipsis text-[13px] font-semibold leading-4"
+                        style={{
+                          display: "-webkit-box",
+                          WebkitLineClamp: 1,
+                          WebkitBoxOrient: "vertical" as const,
+                          textOverflow: "ellipsis",
+                        }}
+                        title={field.name}
+                      >
+                        {field.name}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onColumnContextMenu) {
+                          onColumnContextMenu(e, field, i);
+                        }
+                      }}
+                      className="flex shrink-0 items-center justify-center rounded p-0.5 text-[#97a0af] opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[#e0e5ed] hover:text-[#4f5d70]"
+                      style={{ width: 20, height: 20 }}
+                      aria-label={`Open ${field.name} column menu`}
+                      data-tutorial-selector-id="openColumnMenuButton"
+                    >
+                      <IconChevronDown />
+                    </button>
+                  </div>
+                  {/* Resize handle — right edge */}
+                  <button
+                    type="button"
+                    aria-label={`Resize ${field.name} column`}
+                    className="absolute top-0 right-0 z-20 h-full w-1.5 cursor-col-resize border-0 bg-transparent p-0 opacity-0 transition-opacity group-hover:opacity-100"
+                    style={{ marginRight: -2 }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleResizeStart(field.id, e.clientX, colWidth);
+                    }}
+                  >
+                    <span className="absolute right-0 top-0 h-full w-px bg-transparent group-hover:bg-[#2a79ef]" />
+                  </button>
+                </div>
+              );
+            })}
+
+            {/* Add field "+" button — ghost cell style like Airtable */}
+            {!isLoading && (
+              <button
+                ref={addButtonRef}
+                type="button"
+                onClick={() => setShowCreateFieldPanel(true)}
+                className="flex shrink-0 items-center justify-center border-r border-b border-[#d2d9e3] text-[#97a0af] hover:bg-[#edf0f5] hover:text-[#4f5d70]"
+                style={{ width: ADD_FIELD_WIDTH, height: ROW_HEIGHT }}
+                title="Add field"
+                aria-label="add a field"
+                data-tutorial-selector-id="gridHeaderAddFieldButton"
+              >
+                <IconPlus />
+              </button>
+            )}
+          </div>
           {/* Drop indicator line spanning the data area */}
           {dragCol && dropTargetIndex !== null && dropTargetIndex !== dragCol.fieldIndex && (() => {
             const fromIdx = dragCol.fieldIndex;
@@ -817,7 +793,8 @@ export function GridTable({
           })()}
           {(isLoading || isPlaceholderData) ? (
             <div
-              className="absolute inset-0 z-20 bg-white"
+              className="absolute z-20 bg-white"
+              style={{ top: ROW_HEIGHT, left: 0, right: 0, bottom: 0 }}
               aria-label="Loading table"
             >
               {/* Skeleton rows */}
