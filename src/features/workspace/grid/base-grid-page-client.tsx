@@ -1059,7 +1059,7 @@ export function BaseGridPageClient({
       createView.mutate({
         tableId: selectedTableId,
         name: `${view.name} copy`,
-        type: view.type as "GRID" | "KANBAN" | "CALENDAR" | "GALLERY" | "FORM",
+        type: view.type,
         config: view.config ?? { globalSearch: "", filters: [], sorts: [], hiddenFieldIds: [] },
       });
     },

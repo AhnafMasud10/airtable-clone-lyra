@@ -666,9 +666,9 @@ export function GridTable({
                 const isDropTarget = dropTargetIndex === i && dragFrom !== null && dragFrom !== i;
                 const indicatorSide = dragFrom !== null && dragFrom < i ? "right" : "left";
                 const isFieldFiltered = filteredFieldIds?.has(field.id);
-                const term = globalSearch?.trim().toLowerCase();
+                const term = globalSearch?.trim().toLowerCase() ?? "";
                 const hasSearchMatchesInColumn =
-                  Boolean(term) && field.name.toLowerCase().includes(term);
+                  term.length > 0 && field.name.toLowerCase().includes(term);
                 const fieldTypeLabel = getFieldTypeLabel(field.type);
                 const isPrimary = i === 0;
                 return (

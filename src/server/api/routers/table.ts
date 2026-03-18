@@ -476,7 +476,7 @@ export const tableRouter = createTRPCRouter({
         });
 
         // Duplicate fields and build old→new field ID map
-        let fieldIdMap = new Map<string, string>();
+        const fieldIdMap = new Map<string, string>();
         if (source.fields.length > 0) {
           const newFields = await tx.field.createManyAndReturn({
             data: source.fields.map((f) => ({

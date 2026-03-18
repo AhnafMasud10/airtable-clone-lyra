@@ -382,7 +382,7 @@ export function TopBar({ baseName, onRenameBase }: TopBarProps) {
               <button
                 type="button"
                 data-tutorial-selector-id="applicationShareButton"
-                aria-description="Tooltip: Share"
+                aria-label="Share"
                 className="flex items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-current"
                 style={{
                   height: "28px",
