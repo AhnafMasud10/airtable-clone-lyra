@@ -33,7 +33,7 @@ export const recordRouter = createTRPCRouter({
       const anchor = await ctx.db.record.findUnique({
         where: { id: input.recordId },
       });
-      if (!anchor || anchor.tableId !== input.tableId) {
+      if (anchor?.tableId !== input.tableId) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Record not found" });
       }
       const created = await ctx.db.$transaction(async (tx) => {
@@ -56,7 +56,7 @@ export const recordRouter = createTRPCRouter({
       const anchor = await ctx.db.record.findUnique({
         where: { id: input.recordId },
       });
-      if (!anchor || anchor.tableId !== input.tableId) {
+      if (anchor?.tableId !== input.tableId) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Record not found" });
       }
       const created = await ctx.db.$transaction(async (tx) => {

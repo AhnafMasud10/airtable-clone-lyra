@@ -1,7 +1,7 @@
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { faker } from "@faker-js/faker";
 import { Prisma } from "../../../../generated/prisma";
-import { z } from "zod";
+import type { z } from "zod";
 import {
   type GridFilterSchema,
   GridQueryInputSchema,

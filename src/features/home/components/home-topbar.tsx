@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth } from "~/server/auth";
 import { UserMenu } from "~/features/auth/user-menu";
 
@@ -24,7 +25,7 @@ export async function HomeTopbar() {
                 <path d="M2 3.5h12a.5.5 0 0 1 0 1H2a.5.5 0 0 1 0-1zm0 4h12a.5.5 0 0 1 0 1H2a.5.5 0 0 1 0-1zm0 4h12a.5.5 0 0 1 0 1H2a.5.5 0 0 1 0-1z" />
               </svg>
             </button>
-            <a
+            <Link
               aria-label="Airtable home"
               className="flex items-center rounded p-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               href="/"
@@ -59,7 +60,7 @@ export async function HomeTopbar() {
                   />
                 </g>
               </svg>
-            </a>
+            </Link>
             <div className="flex-auto" />
           </div>
         </div>

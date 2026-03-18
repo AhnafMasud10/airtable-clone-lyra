@@ -67,7 +67,6 @@ const SHADOW_MENU =
   "0px 4px 12px rgba(0,0,0,0.15), 0px 0px 1px rgba(0,0,0,0.2)";
 
 const GREEN_LIGHT3 = "rgb(230, 252, 232)";
-const LIGHT_BASE = "rgb(236, 239, 244)";
 const GREEN_DUSTY = "rgb(64, 124, 74)";
 const FG_DEFAULT = "rgb(29, 31, 37)";
 const FG_SUBTLE = "rgb(97, 102, 112)";

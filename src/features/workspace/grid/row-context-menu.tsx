@@ -3,6 +3,8 @@
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 
+const noop = (): void => undefined;
+
 function IconArrowUp() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -258,21 +260,21 @@ export function RowContextMenu({
           <MenuItem
             icon={<IconOmni />}
             label={`Ask Omni about ${selectedRowIds.length} records`}
-            onClick={() => {}}
+            onClick={noop}
             highlighted
           />
           <div className="my-1 h-px bg-[rgb(229,233,240)]" />
           <MenuItem
             icon={<IconRobot />}
             label="Run field agent"
-            onClick={() => {}}
+            onClick={noop}
             showChevron
           />
           <div className="my-1 h-px bg-[rgb(229,233,240)]" />
           <MenuItem
             icon={<IconEnvelope />}
             label="Send all selected records"
-            onClick={() => {}}
+            onClick={noop}
           />
           <div className="my-1 h-px bg-[rgb(229,233,240)]" />
           <MenuItem
@@ -305,24 +307,24 @@ export function RowContextMenu({
           <MenuItem
             icon={<IconTemplate />}
             label="Apply template"
-            onClick={() => {}}
+            onClick={noop}
           />
           <MenuItem
             icon={<IconExpand />}
             label="Expand record"
-            onClick={() => {}}
+            onClick={noop}
           />
           <MenuItem
             icon={<IconAgent />}
             label="Run field agent"
-            onClick={() => {}}
+            onClick={noop}
             showChevron
           />
           <div className="my-1 h-px bg-[rgb(229,233,240)]" />
           <MenuItem
             icon={<IconComment />}
             label="Add comment"
-            onClick={() => {}}
+            onClick={noop}
           />
           <MenuItem
             icon={<IconLink />}
@@ -332,7 +334,7 @@ export function RowContextMenu({
           <MenuItem
             icon={<IconEnvelope />}
             label="Send record"
-            onClick={() => {}}
+            onClick={noop}
           />
           <div className="my-1 h-px bg-[rgb(229,233,240)]" />
           <MenuItem
