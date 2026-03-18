@@ -8,14 +8,18 @@ import {
   GridWindowOutputSchema,
   TableBulkInsertRowsInputSchema,
   TableBulkInsertRowsOutputSchema,
+  TableClearDataInputSchema,
   TableCreateInputSchema,
   TableCreateOutputSchema,
   TableCreateWithDefaultsInputSchema,
+  TableDeleteInputSchema,
   TableDetailSchema,
+  TableDuplicateInputSchema,
   TableGetByIdInputSchema,
   TableListByBaseInputSchema,
   TableSeedInputSchema,
   TableSummarySchema,
+  TableUpdateInputSchema,
 } from "~/types/base-table";
 
 import { assertBaseOwnership, assertTableAccess } from "../auth-helpers";
@@ -423,6 +427,133 @@ export const tableRouter = createTRPCRouter({
       }
 
       return { inserted: count };
+    }),
+
+  update: protectedProcedure
+    .input(TableUpdateInputSchema)
+    .output(TableSummarySchema)
+    .mutation(async ({ ctx, input }) => {
+      await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
+      const updated = await ctx.db.table.update({
+        where: { id: input.tableId },
+        data: {
+          ...(input.name ? { name: input.name } : {}),
+        },
+        select: { id: true, name: true },
+      });
+      return updated;
+    }),
+
+  delete: protectedProcedure
+    .input(TableDeleteInputSchema)
+    .output(TableDeleteInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
+      await ctx.db.table.delete({ where: { id: input.tableId } });
+      return { tableId: input.tableId };
+    }),
+
+  duplicate: protectedProcedure
+    .input(TableDuplicateInputSchema)
+    .output(TableCreateOutputSchema)
+    .mutation(async ({ ctx, input }) => {
+      await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
+      const source = await ctx.db.table.findUniqueOrThrow({
+        where: { id: input.tableId },
+        include: {
+          fields: { orderBy: { order: "asc" } },
+          views: { orderBy: { createdAt: "asc" } },
+          records: {
+            orderBy: { order: "asc" },
+            include: { cells: true },
+          },
+        },
+      });
+
+      return ctx.db.$transaction(async (tx) => {
+        const newTable = await tx.table.create({
+          data: { name: input.name, baseId: source.baseId },
+        });
+
+        // Duplicate fields and build old→new field ID map
+        let fieldIdMap = new Map<string, string>();
+        if (source.fields.length > 0) {
+          const newFields = await tx.field.createManyAndReturn({
+            data: source.fields.map((f) => ({
+              tableId: newTable.id,
+              name: f.name,
+              type: f.type,
+              order: f.order,
+              options: f.options ?? undefined,
+            })),
+          });
+          // Map by order since createManyAndReturn preserves insertion order
+          for (let i = 0; i < source.fields.length; i++) {
+            fieldIdMap.set(source.fields[i]!.id, newFields[i]!.id);
+          }
+        }
+
+        // Duplicate views
+        if (source.views.length > 0) {
+          await tx.view.createMany({
+            data: source.views.map((v) => ({
+              tableId: newTable.id,
+              name: v.name,
+              type: v.type,
+            })),
+          });
+        } else {
+          await tx.view.create({
+            data: { tableId: newTable.id, name: "Grid view", type: "GRID" },
+          });
+        }
+
+        // Duplicate records and cells
+        if (source.records.length > 0) {
+          const newRecords = await tx.record.createManyAndReturn({
+            data: source.records.map((r) => ({
+              tableId: newTable.id,
+              order: r.order,
+            })),
+          });
+
+          const cells: { recordId: string; fieldId: string; value: string | null }[] = [];
+          for (let i = 0; i < source.records.length; i++) {
+            const oldRecord = source.records[i]!;
+            const newRecord = newRecords[i]!;
+            for (const cell of oldRecord.cells) {
+              const newFieldId = fieldIdMap.get(cell.fieldId);
+              if (newFieldId) {
+                cells.push({
+                  recordId: newRecord.id,
+                  fieldId: newFieldId,
+                  value: cell.value,
+                });
+              }
+            }
+          }
+
+          // Insert cells in chunks to stay under PG param limit
+          const CELL_CHUNK = 3000;
+          for (let c = 0; c < cells.length; c += CELL_CHUNK) {
+            await tx.cell.createMany({
+              data: cells.slice(c, c + CELL_CHUNK),
+            });
+          }
+        }
+
+        return newTable;
+      });
+    }),
+
+  clearData: protectedProcedure
+    .input(TableClearDataInputSchema)
+    .output(TableClearDataInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
+      // Delete all records (cells cascade via Record onDelete)
+      await ctx.db.record.deleteMany({ where: { tableId: input.tableId } });
+      return { tableId: input.tableId };
     }),
 
   getGridWindow: protectedProcedure

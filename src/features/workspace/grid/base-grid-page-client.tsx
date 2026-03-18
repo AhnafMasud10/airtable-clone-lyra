@@ -103,7 +103,7 @@ export function BaseGridPageClient({
 
   const tablesQuery = api.table.listByBase.useQuery(
     { baseId },
-    { initialData: initialTables },
+    { initialData: initialTables, staleTime: 30_000 },
   );
 
   const viewsQuery = api.view.listByTable.useQuery(
@@ -152,6 +152,24 @@ export function BaseGridPageClient({
 
   // ── Mutations ────────────────────────────────────────────────────────
 
+  const [localBaseName, setLocalBaseName] = useState(baseName);
+
+  const updateBase = api.base.update.useMutation({
+    onMutate: (input) => {
+      if (input.name) setLocalBaseName(input.name);
+    },
+    onError: () => {
+      setLocalBaseName(baseName);
+    },
+  });
+
+  const handleRenameBase = useCallback(
+    (name: string) => {
+      updateBase.mutate({ baseId, name });
+    },
+    [baseId, updateBase],
+  );
+
   const createTable = api.table.createWithDefaults.useMutation({
     onSuccess: async (created) => {
       suppressAutoSaveRef.current = true;
@@ -193,6 +211,108 @@ export function BaseGridPageClient({
       requestAnimationFrame(() => {
         suppressAutoSaveRef.current = false;
       });
+    },
+  });
+
+  const updateTable = api.table.update.useMutation({
+    onMutate: async (input) => {
+      const queryKey = { baseId };
+      await utils.table.listByBase.cancel(queryKey);
+      const previousTables = utils.table.listByBase.getData(queryKey);
+      utils.table.listByBase.setData(queryKey, (old) =>
+        old?.map((t) =>
+          t.id === input.tableId
+            ? { ...t, ...(input.name ? { name: input.name } : {}) }
+            : t,
+        ),
+      );
+      return { previousTables };
+    },
+    onError: (_err, _input, context) => {
+      if (context?.previousTables) {
+        utils.table.listByBase.setData({ baseId }, context.previousTables);
+      }
+      // Only refetch on error to restore true server state
+      void utils.table.listByBase.invalidate({ baseId });
+    },
+  });
+
+  const deleteTable = api.table.delete.useMutation({
+    onMutate: async (input) => {
+      const queryKey = { baseId };
+      await utils.table.listByBase.cancel(queryKey);
+      const previousTables = utils.table.listByBase.getData(queryKey);
+      utils.table.listByBase.setData(queryKey, (old) =>
+        old?.filter((t) => t.id !== input.tableId),
+      );
+      // Switch to another table if the deleted one was selected
+      if (selectedTableId === input.tableId) {
+        const remaining = (previousTables ?? []).filter((t) => t.id !== input.tableId);
+        if (remaining.length > 0) {
+          const next = remaining[0]!;
+          suppressAutoSaveRef.current = true;
+          setSelectedTableId(next.id);
+          setSelectedViewId(null);
+          setFilters([]);
+          setSorts([]);
+          setGlobalSearch("");
+          setHiddenFieldIds([]);
+          globalThis.history.replaceState(null, "", `/base/${baseId}/table/${next.id}`);
+          requestAnimationFrame(() => { suppressAutoSaveRef.current = false; });
+        }
+      }
+      return { previousTables };
+    },
+    onError: (_err, _input, context) => {
+      if (context?.previousTables) {
+        utils.table.listByBase.setData({ baseId }, context.previousTables);
+      }
+    },
+    onSettled: async () => {
+      await utils.table.listByBase.invalidate({ baseId });
+    },
+  });
+
+  const duplicateTable = api.table.duplicate.useMutation({
+    onSuccess: async (created) => {
+      suppressAutoSaveRef.current = true;
+      await utils.table.listByBase.invalidate({ baseId });
+      setSelectedTableId(created.id);
+      setSelectedViewId(null);
+      setFilters([]);
+      setSorts([]);
+      setGlobalSearch("");
+      setHiddenFieldIds([]);
+      globalThis.history.replaceState(null, "", `/base/${baseId}/table/${created.id}`);
+      requestAnimationFrame(() => { suppressAutoSaveRef.current = false; });
+    },
+  });
+
+  const clearTableData = api.table.clearData.useMutation({
+    onMutate: async () => {
+      // Optimistically clear the grid data
+      if (!selectedTableId) return {};
+      await utils.table.getGridWindow.cancel(gridInput);
+      const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
+      utils.table.getGridWindow.setInfiniteData(gridInput, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page, i) =>
+            i === 0 ? { ...page, rows: [], total: 0 } : page,
+          ),
+        };
+      });
+      return { previousGrid };
+    },
+    onError: (_err, _input, context) => {
+      if (context?.previousGrid) {
+        utils.table.getGridWindow.setInfiniteData(gridInput, context.previousGrid);
+      }
+    },
+    onSettled: async () => {
+      if (!selectedTableId) return;
+      await utils.table.getGridWindow.invalidate(gridInput);
     },
   });
 
@@ -250,6 +370,49 @@ export function BaseGridPageClient({
       requestAnimationFrame(() => {
         suppressAutoSaveRef.current = false;
       });
+    },
+  });
+
+  const updateView = api.view.update.useMutation({
+    onMutate: async (input) => {
+      if (!selectedTableId) return {};
+      const queryKey = { tableId: selectedTableId };
+      await utils.view.listByTable.cancel(queryKey);
+      const previousViews = utils.view.listByTable.getData(queryKey);
+      utils.view.listByTable.setData(queryKey, (old) =>
+        old?.map((v) =>
+          v.id === input.viewId
+            ? { ...v, ...(input.name ? { name: input.name } : {}) }
+            : v,
+        ),
+      );
+      return { previousViews };
+    },
+    onError: (_err, _input, context) => {
+      if (!selectedTableId || !context?.previousViews) return;
+      utils.view.listByTable.setData({ tableId: selectedTableId }, context.previousViews);
+      void utils.view.listByTable.invalidate({ tableId: selectedTableId });
+    },
+  });
+
+  const deleteView = api.view.delete.useMutation({
+    onSuccess: async (_data, variables) => {
+      if (!selectedTableId) return;
+      await utils.view.listByTable.invalidate({ tableId: selectedTableId });
+      // If the deleted view was selected, switch to the first available view
+      if (selectedViewId === variables.viewId) {
+        const remaining = (viewsQuery.data ?? []).filter((v) => v.id !== variables.viewId);
+        if (remaining.length > 0) {
+          const next = remaining[0]!;
+          setSelectedViewId(next.id);
+          applyViewConfig(next);
+          globalThis.history.replaceState(
+            null,
+            "",
+            `/base/${baseId}/table/${selectedTableId}/view/${next.id}`,
+          );
+        }
+      }
     },
   });
 
@@ -777,6 +940,45 @@ export function BaseGridPageClient({
     seedTable.mutate({ baseId, name });
   }, [baseId, seedTable, tablesQuery.data]);
 
+  const handleRenameTable = useCallback(
+    (tableId: string, name: string) => {
+      updateTable.mutate({ tableId, name });
+    },
+    [updateTable],
+  );
+
+  const handleDuplicateTable = useCallback(
+    (tableId: string) => {
+      const tables = tablesQuery.data ?? [];
+      const source = tables.find((t) => t.id === tableId);
+      const baseName = source ? `${source.name} copy` : "Table copy";
+      const existingNames = new Set(tables.map((t) => t.name));
+      let name = baseName;
+      let i = 2;
+      while (existingNames.has(name)) {
+        name = `${baseName} ${i}`;
+        i++;
+      }
+      duplicateTable.mutate({ tableId, name });
+    },
+    [duplicateTable, tablesQuery.data],
+  );
+
+  const handleDeleteTable = useCallback(
+    (tableId: string) => {
+      deleteTable.mutate({ tableId });
+    },
+    [deleteTable],
+  );
+
+  const handleClearTableData = useCallback(
+    (tableId: string) => {
+      clearTableData.mutate({ tableId });
+    },
+    [clearTableData],
+  );
+
+
   const handleBulkInsert = useCallback(async () => {
     if (!selectedTableId || bulkProgress) return;
     const BATCH = 1000;
@@ -819,6 +1021,33 @@ export function BaseGridPageClient({
       });
     },
     [selectedTableId, createView],
+  );
+
+  const handleRenameView = useCallback(
+    (viewId: string, name: string) => {
+      updateView.mutate({ viewId, name });
+    },
+    [updateView],
+  );
+
+  const handleDuplicateView = useCallback(
+    (view: ViewItem) => {
+      if (!selectedTableId) return;
+      createView.mutate({
+        tableId: selectedTableId,
+        name: `${view.name} copy`,
+        type: view.type as "GRID" | "KANBAN" | "CALENDAR" | "GALLERY" | "FORM",
+        config: view.config ?? { globalSearch: "", filters: [], sorts: [], hiddenFieldIds: [] },
+      });
+    },
+    [selectedTableId, createView],
+  );
+
+  const handleDeleteView = useCallback(
+    (viewId: string) => {
+      deleteView.mutate({ viewId });
+    },
+    [deleteView],
   );
 
   const handleSelectView = useCallback(
@@ -1367,7 +1596,7 @@ export function BaseGridPageClient({
       {/* ── Main app area (right of icon rail) ── */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar */}
-        <TopBar baseName={baseName} />
+        <TopBar baseName={localBaseName} onRenameBase={handleRenameBase} />
 
         {/* Table tabs (green bar) */}
         <TableTabs
@@ -1380,6 +1609,10 @@ export function BaseGridPageClient({
           isSeeding={seedTable.isPending}
           onBulkInsert={handleBulkInsert}
           isBulkInserting={bulkInsertRows.isPending}
+          onRenameTable={handleRenameTable}
+          onDuplicateTable={handleDuplicateTable}
+          onDeleteTable={handleDeleteTable}
+          onClearTableData={handleClearTableData}
         />
 
         {/* ── Content area: toolbar full width, then sidebar | grid ── */}
@@ -1422,6 +1655,9 @@ export function BaseGridPageClient({
               onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
               onSelectView={handleSelectView}
               onCreateView={handleCreateView}
+              onRenameView={handleRenameView}
+              onDuplicateView={handleDuplicateView}
+              onDeleteView={handleDeleteView}
             />
 
             <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-white">

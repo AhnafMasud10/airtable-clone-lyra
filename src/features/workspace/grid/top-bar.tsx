@@ -1,7 +1,11 @@
 "use client";
 
+import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
+
 type TopBarProps = Readonly<{
   baseName: string;
+  onRenameBase: (name: string) => void;
 }>;
 
 function AirtableLogoIcon() {
@@ -136,7 +140,10 @@ const GREEN_DUSTY = "rgb(64, 124, 74)";
 const BORDER_DEFAULT = "rgba(0, 0, 0, 0.1)";
 const DARKEN1 = "rgba(0, 0, 0, 0.05)";
 
-export function TopBar({ baseName }: TopBarProps) {
+export function TopBar({ baseName, onRenameBase }: TopBarProps) {
+  const [popupOpen, setPopupOpen] = useState(false);
+  const nameButtonRef = useRef<HTMLButtonElement>(null);
+
   return (
     <header
       className="relative"
@@ -193,6 +200,7 @@ export function TopBar({ baseName }: TopBarProps) {
               style={{ maxWidth: "480px" }}
             >
               <button
+                ref={nameButtonRef}
                 type="button"
                 className="flex items-center rounded"
                 style={{
@@ -204,6 +212,7 @@ export function TopBar({ baseName }: TopBarProps) {
                   border: "none",
                   padding: 0,
                 }}
+                onClick={() => setPopupOpen((o) => !o)}
               >
                 <div
                   className="truncate"
@@ -221,6 +230,19 @@ export function TopBar({ baseName }: TopBarProps) {
                 </div>
                 <ChevronDownIcon />
               </button>
+
+              {popupOpen && nameButtonRef.current &&
+                createPortal(
+                  <BaseSettingsPopup
+                    baseName={baseName}
+                    anchorRect={nameButtonRef.current.getBoundingClientRect()}
+                    onRename={(name) => {
+                      onRenameBase(name);
+                    }}
+                    onClose={() => setPopupOpen(false)}
+                  />,
+                  document.body,
+                )}
             </div>
           </div>
         </div>
@@ -403,5 +425,253 @@ export function TopBar({ baseName }: TopBarProps) {
         </div>
       </div>
     </header>
+  );
+}
+
+// ── Icons for popup ──────────────────────────────────────────────────
+
+function StarOutlineIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <path d="M8 1.5l1.76 3.57 3.94.57-2.85 2.78.67 3.93L8 10.67l-3.52 1.68.67-3.93L2.3 5.64l3.94-.57L8 1.5z" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function OverflowIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <circle cx="4" cy="8" r="1.25" fill="currentColor" />
+      <circle cx="8" cy="8" r="1.25" fill="currentColor" />
+      <circle cx="12" cy="8" r="1.25" fill="currentColor" />
+    </svg>
+  );
+}
+
+function PopupChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="flex-none"
+      style={{
+        shapeRendering: "geometricPrecision",
+        transform: expanded ? "rotate(0deg)" : "rotate(-90deg)",
+        transition: "transform 150ms ease",
+      }}
+    >
+      <path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" />
+    </svg>
+  );
+}
+
+// ── Base Settings Popup ──────────────────────────────────────────────
+
+const POPUP_SHADOW = "0 0 0 1px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.12)";
+
+function BaseSettingsPopup({
+  baseName,
+  anchorRect,
+  onRename,
+  onClose,
+}: {
+  baseName: string;
+  anchorRect: DOMRect;
+  onRename: (name: string) => void;
+  onClose: () => void;
+}) {
+  const [nameValue, setNameValue] = useState(baseName);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(true);
+  const popupRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setNameValue(baseName);
+  }, [baseName]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [onClose]);
+
+  const commitRename = useCallback(() => {
+    const trimmed = nameValue.trim();
+    if (trimmed && trimmed !== baseName) {
+      onRename(trimmed);
+    }
+  }, [nameValue, baseName, onRename]);
+
+  return (
+    <div
+      ref={popupRef}
+      role="menu"
+      tabIndex={-1}
+      data-popup
+      aria-label="Base settings menu"
+      style={{
+        position: "fixed",
+        top: anchorRect.bottom + 8,
+        left: anchorRect.left,
+        width: 400,
+        zIndex: 50,
+        borderRadius: 12,
+        backgroundColor: "white",
+        boxShadow: POPUP_SHADOW,
+        fontFamily: FONT_BODY,
+        maxHeight: "calc(100vh - 100px)",
+        overflowY: "auto",
+        padding: "12px",
+      }}
+    >
+      {/* Name input row */}
+      <div
+        className="flex w-full items-center pb-3"
+        style={{ borderBottom: `1px solid ${BORDER_DEFAULT}` }}
+      >
+        <input
+          ref={inputRef}
+          aria-label="rename base"
+          type="text"
+          maxLength={255}
+          value={nameValue}
+          onChange={(e) => setNameValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              commitRename();
+              inputRef.current?.blur();
+            }
+          }}
+          onBlur={commitRename}
+          className="flex-auto truncate rounded border-none p-1 outline-none"
+          style={{
+            fontFamily: FONT_HEADING,
+            fontSize: "17px",
+            fontWeight: 800,
+            lineHeight: "24px",
+            color: FG_DEFAULT,
+            backgroundColor: "transparent",
+          }}
+        />
+        <div className="ml-2 flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            className="flex items-center justify-center rounded p-1 hover:bg-black/5"
+            style={{ color: FG_SUBTLE }}
+            aria-label="Add to starred on the home screen"
+          >
+            <StarOutlineIcon />
+          </button>
+          <button
+            type="button"
+            className="flex items-center justify-center rounded p-1 hover:bg-black/5"
+            style={{ color: FG_SUBTLE }}
+            aria-label="Open overflow menu"
+          >
+            <OverflowIcon />
+          </button>
+        </div>
+      </div>
+
+      {/* Appearance section */}
+      <div
+        className="pt-3 pb-3"
+        style={{ borderBottom: `1px solid ${BORDER_DEFAULT}` }}
+      >
+        <button
+          type="button"
+          className="flex w-full cursor-pointer items-center"
+          style={{ background: "none", border: "none", padding: "4px" }}
+          onClick={() => setAppearanceOpen((o) => !o)}
+        >
+          <PopupChevronIcon expanded={appearanceOpen} />
+          <span
+            className="ml-1"
+            style={{
+              fontFamily: FONT_HEADING,
+              fontSize: "13px",
+              fontWeight: 700,
+              color: FG_DEFAULT,
+            }}
+          >
+            Appearance
+          </span>
+        </button>
+        <div
+          style={{
+            height: appearanceOpen ? "auto" : 0,
+            overflow: "hidden",
+            transition: "height 150ms ease",
+          }}
+        >
+          {appearanceOpen && (
+            <div className="px-1 pt-2 text-[13px]" style={{ color: FG_SUBTLE }}>
+              Customize your base icon and color.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Base guide section */}
+      <div className="pt-3">
+        <button
+          type="button"
+          className="flex w-full cursor-pointer items-center"
+          style={{ background: "none", border: "none", padding: "4px" }}
+          onClick={() => setGuideOpen((o) => !o)}
+        >
+          <PopupChevronIcon expanded={guideOpen} />
+          <span
+            className="ml-1"
+            style={{
+              fontFamily: FONT_HEADING,
+              fontSize: "13px",
+              fontWeight: 700,
+              color: FG_DEFAULT,
+            }}
+          >
+            Base guide
+          </span>
+        </button>
+        <div
+          style={{
+            height: guideOpen ? "auto" : 0,
+            overflow: "hidden",
+            transition: "height 150ms ease",
+          }}
+        >
+          {guideOpen && (
+            <div className="mt-2 -ml-1">
+              <div
+                className="w-full cursor-pointer rounded-lg px-3 py-2 text-[13px] hover:bg-black/5"
+                style={{
+                  color: FG_SUBTLE,
+                  lineHeight: "20px",
+                }}
+              >
+                <p style={{ margin: 0 }}>
+                  Teammates will see this when they first open the base – add a
+                  description, goals, links, things like that.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

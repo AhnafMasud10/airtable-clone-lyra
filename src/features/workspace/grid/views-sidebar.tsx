@@ -11,6 +11,9 @@ type ViewsSidebarProps = Readonly<{
   onToggleCollapse: () => void;
   onSelectView: (view: ViewItem) => void;
   onCreateView: (type: string, name: string) => void;
+  onRenameView: (viewId: string, name: string) => void;
+  onDuplicateView: (view: ViewItem) => void;
+  onDeleteView: (viewId: string) => void;
 }>;
 
 // ── Icons ────────────────────────────────────────────────────────────
@@ -437,6 +440,151 @@ function CreateViewMenu({
   );
 }
 
+// ── Context menu icons ───────────────────────────────────────────────
+
+function StarIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <path d="M8 1.5l1.76 3.57 3.94.57-2.85 2.78.67 3.93L8 10.67l-3.52 1.68.67-3.93L2.3 5.64l3.94-.57L8 1.5z" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <path d="M11.5 2.5a1.41 1.41 0 0 1 2 2L5.5 12.5l-3 1 1-3 8-8z" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <rect x="5" y="5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M11 3H4.5A1.5 1.5 0 0 0 3 4.5V11" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <path d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M5 4.5v8a1.5 1.5 0 0 0 1.5 1.5h3A1.5 1.5 0 0 0 11 12.5v-8" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// ── View Context Menu ────────────────────────────────────────────────
+
+function ViewContextMenu({
+  anchorRect,
+  view,
+  canDelete,
+  onRename,
+  onDuplicate,
+  onDelete,
+  onClose,
+}: {
+  anchorRect: DOMRect;
+  view: ViewItem;
+  canDelete: boolean;
+  onRename: (view: ViewItem) => void;
+  onDuplicate: (view: ViewItem) => void;
+  onDelete: (viewId: string) => void;
+  onClose: () => void;
+}) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  useClickOutside(menuRef, onClose);
+
+  return createPortal(
+    <div
+      ref={menuRef}
+      role="dialog"
+      tabIndex={-1}
+      style={{
+        position: "fixed",
+        top: anchorRect.bottom + 4,
+        left: anchorRect.left,
+        width: 280,
+        zIndex: 50,
+        borderRadius: 12,
+        backgroundColor: "white",
+        boxShadow: POPOVER_SHADOW,
+        fontFamily: FONT_FAMILY,
+        overflow: "hidden",
+      }}
+    >
+      <ul role="menu" tabIndex={-1} className="p-1.5">
+        {/* Add to favorites */}
+        <li
+          role="menuitem"
+          tabIndex={-1}
+          className="flex w-full cursor-pointer items-center rounded py-1.5 px-2 hover:bg-[rgb(241,243,246)]"
+          style={{ fontSize: 13, color: "rgb(29, 31, 37)" }}
+          onClick={() => {
+            onClose();
+          }}
+        >
+          <span className="mr-2 flex-none text-[rgb(29,31,37)]"><StarIcon /></span>
+          <span className="flex-auto truncate select-none">Add to &apos;My favorites&apos;</span>
+        </li>
+
+        {/* Separator */}
+        <li role="presentation" className="mx-2 my-1" style={{ height: 1, backgroundColor: "rgb(229, 233, 240)" }} />
+
+        {/* Rename */}
+        <li
+          role="menuitem"
+          tabIndex={-1}
+          className="flex w-full cursor-pointer items-center rounded py-1.5 px-2 hover:bg-[rgb(241,243,246)]"
+          style={{ fontSize: 13, color: "rgb(29, 31, 37)" }}
+          onClick={() => {
+            onRename(view);
+            onClose();
+          }}
+        >
+          <span className="mr-2 flex-none text-[rgb(29,31,37)]"><PencilIcon /></span>
+          <span className="flex-auto truncate select-none">Rename view</span>
+        </li>
+
+        {/* Duplicate */}
+        <li
+          role="menuitem"
+          tabIndex={-1}
+          className="flex w-full cursor-pointer items-center rounded py-1.5 px-2 hover:bg-[rgb(241,243,246)]"
+          style={{ fontSize: 13, color: "rgb(29, 31, 37)" }}
+          onClick={() => {
+            onDuplicate(view);
+            onClose();
+          }}
+        >
+          <span className="mr-2 flex-none text-[rgb(29,31,37)]"><CopyIcon /></span>
+          <span className="flex-auto truncate select-none">Duplicate view</span>
+        </li>
+
+        {/* Delete */}
+        <li
+          role="menuitem"
+          tabIndex={-1}
+          className={`flex w-full items-center rounded py-1.5 px-2 ${canDelete ? "cursor-pointer hover:bg-[rgb(241,243,246)]" : "opacity-50 cursor-not-allowed"}`}
+          style={{ fontSize: 13, color: canDelete ? "rgb(200, 50, 50)" : "rgb(200, 130, 130)" }}
+          aria-disabled={!canDelete}
+          onClick={() => {
+            if (!canDelete) return;
+            onDelete(view.id);
+            onClose();
+          }}
+        >
+          <span className="mr-2 flex-none"><TrashIcon /></span>
+          <span className="flex-auto truncate select-none">Delete view</span>
+        </li>
+      </ul>
+    </div>,
+    document.body,
+  );
+}
+
 // ── Sidebar ──────────────────────────────────────────────────────────
 
 const SIDEBAR_WIDTH = 280;
@@ -448,11 +596,17 @@ export function ViewsSidebar({
   onToggleCollapse: _onToggleCollapse,
   onSelectView,
   onCreateView,
+  onRenameView,
+  onDuplicateView,
+  onDeleteView,
 }: ViewsSidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [configState, setConfigState] = useState<{ typeId: string; type: string } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const [contextMenu, setContextMenu] = useState<{ view: ViewItem; rect: DOMRect } | null>(null);
+  const [renamingViewId, setRenamingViewId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const filteredViews = searchQuery
     ? views.filter((v) =>
@@ -578,6 +732,7 @@ export function ViewsSidebar({
           <ul>
             {filteredViews.map((view) => {
               const isActive = selectedViewId === view.id;
+              const isRenaming = renamingViewId === view.id;
               return (
                 <li key={view.id}>
                   <button
@@ -588,30 +743,64 @@ export function ViewsSidebar({
                         ? "rgb(229, 233, 240)"
                         : undefined,
                     }}
-                    onClick={() => onSelectView(view)}
+                    onClick={() => {
+                      if (!isRenaming) onSelectView(view);
+                    }}
                   >
                     <div className="flex items-center">
-                      <div className="flex flex-1 items-center">
+                      <div className="flex flex-1 items-center min-w-0">
                         <span className="mr-2 flex shrink-0 items-center">
                           {viewIcon(view.type)}
                         </span>
-                        <span
-                          className="truncate"
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            lineHeight: "18px",
-                            color: "rgb(29, 31, 37)",
-                          }}
-                        >
-                          {view.name}
-                        </span>
+                        {isRenaming ? (
+                          <input
+                            type="text"
+                            autoFocus
+                            className="w-full rounded border border-[rgb(22,110,225)] px-1 py-0 text-[13px] font-semibold text-[rgb(29,31,37)] outline-none"
+                            style={{ lineHeight: "18px" }}
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && renameValue.trim()) {
+                                onRenameView(view.id, renameValue.trim());
+                                setRenamingViewId(null);
+                              }
+                              if (e.key === "Escape") {
+                                setRenamingViewId(null);
+                              }
+                            }}
+                            onBlur={() => {
+                              if (renameValue.trim() && renameValue.trim() !== view.name) {
+                                onRenameView(view.id, renameValue.trim());
+                              }
+                              setRenamingViewId(null);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <span
+                            className="truncate"
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              lineHeight: "18px",
+                              color: "rgb(29, 31, 37)",
+                            }}
+                          >
+                            {view.name}
+                          </span>
+                        )}
                       </div>
                       <span className={`flex items-center gap-0.5 ${isActive ? "visible" : "invisible group-hover:visible"}`}>
                         <span
-                          className="flex items-center justify-center"
-                          aria-label="Menu"
-                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center justify-center rounded hover:bg-black/10 cursor-pointer"
+                          style={{ width: 20, height: 20 }}
+                          aria-label="View options"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                            setContextMenu({ view, rect });
+                          }}
                         >
                           <OverflowIcon />
                         </span>
@@ -626,6 +815,22 @@ export function ViewsSidebar({
             })}
           </ul>
         </div>
+
+        {/* View context menu */}
+        {contextMenu && (
+          <ViewContextMenu
+            anchorRect={contextMenu.rect}
+            view={contextMenu.view}
+            canDelete={views.length > 1}
+            onRename={(v) => {
+              setRenameValue(v.name);
+              setRenamingViewId(v.id);
+            }}
+            onDuplicate={(v) => onDuplicateView(v)}
+            onDelete={(id) => onDeleteView(id)}
+            onClose={() => setContextMenu(null)}
+          />
+        )}
       </div>
 
       {/* Resize handle */}

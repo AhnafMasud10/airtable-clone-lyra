@@ -4,6 +4,7 @@ import {
   BaseCreateOutputSchema,
   BaseGetByIdInputSchema,
   BaseSummarySchema,
+  BaseUpdateInputSchema,
 } from "~/types/base-table";
 
 import { assertBaseOwnership } from "../auth-helpers";
@@ -49,6 +50,19 @@ export const baseRouter = createTRPCRouter({
             },
           },
         },
+      });
+    }),
+
+  update: protectedProcedure
+    .input(BaseUpdateInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      await assertBaseOwnership(ctx.db, input.baseId, ctx.session.user.id);
+      return ctx.db.base.update({
+        where: { id: input.baseId },
+        data: {
+          ...(input.name ? { name: input.name } : {}),
+        },
+        select: { id: true, name: true },
       });
     }),
 

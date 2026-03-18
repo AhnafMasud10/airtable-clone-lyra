@@ -44,6 +44,11 @@ export const BaseCreateOutputSchema = z.object({
   ownerId: z.string(),
 });
 
+export const BaseUpdateInputSchema = z.object({
+  baseId: z.string().min(1),
+  name: z.string().min(1).max(255).optional(),
+});
+
 export const TableListByBaseInputSchema = z.object({
   baseId: z.string().min(1),
 });
@@ -72,6 +77,24 @@ export const TableCreateOutputSchema = z.object({
 export const TableSeedInputSchema = z.object({
   baseId: z.string().min(1),
   name: z.string().min(1).max(100),
+});
+
+export const TableUpdateInputSchema = z.object({
+  tableId: z.string().min(1),
+  name: z.string().min(1).max(100).optional(),
+});
+
+export const TableDeleteInputSchema = z.object({
+  tableId: z.string().min(1),
+});
+
+export const TableDuplicateInputSchema = z.object({
+  tableId: z.string().min(1),
+  name: z.string().min(1).max(100),
+});
+
+export const TableClearDataInputSchema = z.object({
+  tableId: z.string().min(1),
 });
 
 export const TableBulkInsertRowsInputSchema = z.object({
