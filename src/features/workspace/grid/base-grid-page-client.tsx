@@ -828,20 +828,30 @@ export function BaseGridPageClient({
     [applyViewConfig, baseId, selectedTableId, selectedViewId, saveViewConfig],
   );
 
-  const handleAddField = useCallback(() => {
-    if (!selectedTableId) return;
-    const name = globalThis.prompt("Column name")?.trim();
-    if (!name) return;
-    const type = (globalThis.prompt("Column type: TEXT or NUMBER") ?? "TEXT")
-      .trim()
-      .toUpperCase();
-    createField.mutate({
-      tableId: selectedTableId,
-      name,
-      type: type === "NUMBER" ? "NUMBER" : "TEXT",
-      order: allFieldsFromGrid.length,
-    });
-  }, [selectedTableId, createField, allFieldsFromGrid.length]);
+  const handleCreateField = useCallback(
+    (
+      name: string,
+      type: "TEXT" | "NUMBER",
+      options?: Record<string, unknown>,
+    ) => {
+      if (!selectedTableId) return;
+      const existingNames = new Set(allFieldsFromGrid.map((f) => f.name));
+      let finalName = name;
+      let n = 2;
+      while (existingNames.has(finalName)) {
+        finalName = `${name} ${n}`;
+        n++;
+      }
+      createField.mutate({
+        tableId: selectedTableId,
+        name: finalName,
+        type,
+        order: allFieldsFromGrid.length,
+        options: options ?? undefined,
+      });
+    },
+    [selectedTableId, createField, allFieldsFromGrid],
+  );
 
   const handleReorderFields = useCallback(
     (fromIndex: number, toIndex: number) => {
@@ -1266,7 +1276,7 @@ export function BaseGridPageClient({
                 onCancelEdit={handleCancelEdit}
                 onFetchNextPage={handleFetchNextPage}
                 onRetry={handleRetry}
-                onAddField={handleAddField}
+                onCreateField={handleCreateField}
                 onReorderFields={handleReorderFields}
                 onAddRow={handleAddRow}
                 onRowContextMenu={handleRowContextMenu}

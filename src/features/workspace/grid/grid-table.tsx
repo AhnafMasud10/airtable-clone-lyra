@@ -16,6 +16,7 @@ import {
 } from "react";
 import type { GridField, TableRowModel } from "./types";
 import { GridCell } from "./grid-cell";
+import { CreateFieldPanel } from "./create-field-panel";
 
 const ROW_HEIGHT = 32;
 const LEFT_PANE_WIDTH = 84;
@@ -188,7 +189,11 @@ type GridTableProps = Readonly<{
   onCancelEdit: () => void;
   onFetchNextPage: () => void;
   onRetry: () => void;
-  onAddField: () => void;
+  onCreateField: (
+    name: string,
+    type: "TEXT" | "NUMBER",
+    options?: Record<string, unknown>,
+  ) => void;
   onAddRow: () => void;
   onReorderFields: (fromIndex: number, toIndex: number) => void;
   onRowContextMenu?: (e: React.MouseEvent, rowId: string) => void;
@@ -213,12 +218,14 @@ export function GridTable({
   onCancelEdit,
   onFetchNextPage,
   onRetry,
-  onAddField,
+  onCreateField,
   onAddRow,
   onReorderFields,
   onRowContextMenu,
 }: GridTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
+  const [showCreateFieldPanel, setShowCreateFieldPanel] = useState(false);
   const columnHelper = createColumnHelper<TableRowModel>();
 
   // Column widths: fieldId -> width in px (overrides defaults)
@@ -561,8 +568,9 @@ export function GridTable({
               {/* Add field "+" button — hidden during loading */}
               {!isLoading && (
                 <button
+                  ref={addButtonRef}
                   type="button"
-                  onClick={onAddField}
+                  onClick={() => setShowCreateFieldPanel(true)}
                   className="flex shrink-0 items-center justify-center border-r border-[#e6ebf2] text-[#97a0af] hover:bg-[#edf0f5] hover:text-[#4f5d70]"
                   style={{ width: ADD_FIELD_WIDTH, height: ROW_HEIGHT }}
                   title="Add field"
@@ -953,6 +961,17 @@ export function GridTable({
         {/* Record count */}
         <span>{totalCount.toLocaleString()} records</span>
       </div>
+
+      {showCreateFieldPanel && addButtonRef.current && (
+        <CreateFieldPanel
+          anchorRef={addButtonRef}
+          onSelect={(name, type, options) => {
+            onCreateField(name, type, options);
+            setShowCreateFieldPanel(false);
+          }}
+          onClose={() => setShowCreateFieldPanel(false)}
+        />
+      )}
     </>
   );
 }
