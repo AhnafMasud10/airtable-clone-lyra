@@ -184,8 +184,9 @@ function MagnifyingGlassIcon() {
 
 function CogIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <path d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm6.32-2.9-.9-.37a5.17 5.17 0 0 0-.3-.73l.37-.9a.5.5 0 0 0-.1-.54l-.85-.85a.5.5 0 0 0-.54-.1l-.9.37a5.17 5.17 0 0 0-.73-.3l-.37-.9A.5.5 0 0 0 9.52 3h-1.2a.5.5 0 0 0-.48.36l-.37.9a5.17 5.17 0 0 0-.73.3l-.9-.37a.5.5 0 0 0-.54.1l-.85.85a.5.5 0 0 0-.1.54l.37.9c-.12.23-.22.48-.3.73l-.9.37A.5.5 0 0 0 3 8.38v1.2a.5.5 0 0 0 .36.48l.9.37c.08.25.18.5.3.73l-.37.9a.5.5 0 0 0 .1.54l.85.85a.5.5 0 0 0 .54.1l.9-.37c.23.12.48.22.73.3l.37.9a.5.5 0 0 0 .48.36h1.2a.5.5 0 0 0 .48-.36l.37-.9c.25-.08.5-.18.73-.3l.9.37a.5.5 0 0 0 .54-.1l.85-.85a.5.5 0 0 0 .1-.54l-.37-.9c.12-.23.22-.48.3-.73l.9-.37A.5.5 0 0 0 13 9.52v-1.2a.5.5 0 0 0-.36-.48l-.32.16Z" />
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <circle cx="8" cy="8" r="2" />
+      <path d="M8 1.5v1.25M8 13.25v1.25M3.4 3.4l.9.9M11.7 11.7l.9.9M1.5 8h1.25M13.25 8h1.25M3.4 12.6l.9-.9M11.7 4.3l.9-.9" />
     </svg>
   );
 }
@@ -719,6 +720,7 @@ export function ViewsSidebar({
                 <button
                   type="button"
                   className="flex h-6 w-6 items-center justify-center rounded hover:bg-[rgb(229,233,240)]"
+                  aria-label="View settings"
                 >
                   <CogIcon />
                 </button>
