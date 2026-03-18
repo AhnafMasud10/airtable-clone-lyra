@@ -243,7 +243,7 @@ function useClickOutside(ref: React.RefObject<HTMLElement | null>, onClose: () =
 function ConfigureViewDialog({
   anchorRect,
   defaultName,
-  viewType,
+  viewType: _viewType,
   onConfirm,
   onCancel,
 }: {

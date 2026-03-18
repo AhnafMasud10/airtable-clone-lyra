@@ -404,10 +404,10 @@ export const tableRouter = createTRPCRouter({
 
       // Build cells with faker values
       const cells: { recordId: string; fieldId: string; value: string }[] = [];
-      for (let k = 0; k < records.length; k++) {
+      for (const record of records) {
         for (const field of fields) {
           cells.push({
-            recordId: records[k]!.id,
+            recordId: record.id,
             fieldId: field.id,
             value: sampleValueForField(field.type),
           });

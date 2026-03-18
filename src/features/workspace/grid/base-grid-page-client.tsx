@@ -18,6 +18,7 @@ import { ViewsSidebar } from "./views-sidebar";
 import { GridToolbar } from "./grid-toolbar";
 import { GridTable } from "./grid-table";
 import { RowContextMenu } from "./row-context-menu";
+import { ColumnContextMenu } from "./column-context-menu";
 
 type BaseGridPageClientProps = Readonly<{
   baseId: string;
@@ -58,6 +59,12 @@ export function BaseGridPageClient({
     x: number;
     y: number;
     anchorRowId: string;
+  } | null>(null);
+  const [columnContextMenu, setColumnContextMenu] = useState<{
+    x: number;
+    y: number;
+    field: GridField;
+    fieldIndex: number;
   } | null>(null);
   const pendingCellUpdatesRef = useRef<
     Map<string, { fieldId: string; value: string }[]>
@@ -298,6 +305,13 @@ export function BaseGridPageClient({
       );
     },
     onSettled: async () => {
+      if (!selectedTableId) return;
+      await utils.table.getGridWindow.invalidate(gridInput);
+    },
+  });
+
+  const deleteField = api.field.delete.useMutation({
+    onSuccess: async () => {
       if (!selectedTableId) return;
       await utils.table.getGridWindow.invalidate(gridInput);
     },
@@ -921,6 +935,7 @@ export function BaseGridPageClient({
 
   const handleRowContextMenu = useCallback(
     (e: React.MouseEvent, rowId: string) => {
+      setColumnContextMenu(null);
       setSelectedRowIds((prev) => {
         const next = new Set(prev);
         if (!next.has(rowId)) next.add(rowId);
@@ -929,6 +944,163 @@ export function BaseGridPageClient({
       setContextMenu({ x: e.clientX, y: e.clientY, anchorRowId: rowId });
     },
     [],
+  );
+
+  const handleColumnContextMenu = useCallback(
+    (e: { clientX: number; clientY: number; preventDefault?: () => void }, field: GridField, fieldIndex: number) => {
+      e.preventDefault?.();
+      setContextMenu(null);
+      setColumnContextMenu({ x: e.clientX, y: e.clientY, field, fieldIndex });
+    },
+    [],
+  );
+
+  const handleEditField = useCallback((_fieldId: string) => {
+    setColumnContextMenu(null);
+    // TODO: Open edit field modal
+  }, []);
+
+  const handleDuplicateField = useCallback(
+    async (fieldId: string) => {
+      if (!selectedTableId) return;
+      const field = allFieldsFromGrid.find((f) => f.id === fieldId);
+      if (!field) return;
+      const existingNames = new Set(allFieldsFromGrid.map((f) => f.name));
+      let name = `${field.name} (copy)`;
+      let n = 1;
+      while (existingNames.has(name)) {
+        name = `${field.name} (copy ${++n})`;
+      }
+      await createField.mutateAsync({
+        tableId: selectedTableId,
+        name,
+        type: field.type,
+        order: allFieldsFromGrid.length,
+      });
+      setColumnContextMenu(null);
+    },
+    [selectedTableId, allFieldsFromGrid, createField],
+  );
+
+  const handleInsertLeft = useCallback(
+    async (fieldIndex: number) => {
+      if (!selectedTableId) return;
+      const newField = await createField.mutateAsync({
+        tableId: selectedTableId,
+        name: "New field",
+        type: "TEXT",
+        order: 0,
+      });
+      const currentIds = allFieldsFromGrid.map((f) => f.id);
+      const newOrder = [
+        ...currentIds.slice(0, fieldIndex),
+        newField.id,
+        ...currentIds.slice(fieldIndex),
+      ];
+      reorderFields.mutate({ tableId: selectedTableId, fieldIds: newOrder });
+      setColumnContextMenu(null);
+    },
+    [selectedTableId, allFieldsFromGrid, createField, reorderFields],
+  );
+
+  const handleInsertRight = useCallback(
+    async (fieldIndex: number) => {
+      if (!selectedTableId) return;
+      const newField = await createField.mutateAsync({
+        tableId: selectedTableId,
+        name: "New field",
+        type: "TEXT",
+        order: 0,
+      });
+      const currentIds = allFieldsFromGrid.map((f) => f.id);
+      const newOrder = [
+        ...currentIds.slice(0, fieldIndex + 1),
+        newField.id,
+        ...currentIds.slice(fieldIndex + 1),
+      ];
+      reorderFields.mutate({ tableId: selectedTableId, fieldIds: newOrder });
+      setColumnContextMenu(null);
+    },
+    [selectedTableId, allFieldsFromGrid, createField, reorderFields],
+  );
+
+  const handleCopyFieldUrl = useCallback((fieldId: string) => {
+    const url = `${typeof window !== "undefined" ? window.location.origin : ""}/base/${baseId}/field/${fieldId}`;
+    void navigator.clipboard.writeText(url);
+    setColumnContextMenu(null);
+  }, [baseId]);
+
+  const handleEditFieldDescription = useCallback((_fieldId: string) => {
+    setColumnContextMenu(null);
+    // TODO: Open edit description modal
+  }, []);
+
+  const handleSortAscending = useCallback(
+    (fieldId: string) => {
+      const field = allFieldsFromGrid.find((f) => f.id === fieldId);
+      const type = field?.type === "NUMBER" ? "number" : "text";
+      setSorts((prev) => [
+        ...prev.filter((f) => f.fieldId !== fieldId),
+        { fieldId, direction: "asc" as const, type },
+      ]);
+      setColumnContextMenu(null);
+    },
+    [allFieldsFromGrid],
+  );
+
+  const handleSortDescending = useCallback(
+    (fieldId: string) => {
+      const field = allFieldsFromGrid.find((f) => f.id === fieldId);
+      const type = field?.type === "NUMBER" ? "number" : "text";
+      setSorts((prev) => [
+        ...prev.filter((f) => f.fieldId !== fieldId),
+        { fieldId, direction: "desc" as const, type },
+      ]);
+      setColumnContextMenu(null);
+    },
+    [allFieldsFromGrid],
+  );
+
+  const handleFilterByField = useCallback((fieldId: string) => {
+    const field = allFieldsFromGrid.find((f) => f.id === fieldId);
+    const type = field?.type === "NUMBER" ? "number" : "text";
+    setFilters((prev) => [
+      ...prev,
+      type === "number"
+        ? {
+            fieldId,
+            type: "number" as const,
+            op: "is_not_empty" as const,
+            conjunction: "and" as const,
+          }
+        : {
+            fieldId,
+            type: "text" as const,
+            op: "is_not_empty" as const,
+            conjunction: "and" as const,
+          },
+    ]);
+    setColumnContextMenu(null);
+  }, [allFieldsFromGrid]);
+
+  const handleGroupByField = useCallback((_fieldId: string) => {
+    setColumnContextMenu(null);
+    // TODO: Group by field
+  }, []);
+
+  const handleHideField = useCallback((fieldId: string) => {
+    setHiddenFieldIds((prev) =>
+      prev.includes(fieldId) ? prev : [...prev, fieldId],
+    );
+    setColumnContextMenu(null);
+  }, []);
+
+  const handleDeleteField = useCallback(
+    (fieldId: string) => {
+      deleteField.mutate({ fieldId });
+      setColumnContextMenu(null);
+    },
+    [deleteField],
   );
 
   const insertAboveRecord = api.record.insertAbove.useMutation({
@@ -1319,6 +1491,7 @@ export function BaseGridPageClient({
                 onReorderFields={handleReorderFields}
                 onAddRow={handleAddRow}
                 onRowContextMenu={handleRowContextMenu}
+                onColumnContextMenu={handleColumnContextMenu}
                 filteredFieldIds={filteredFieldIds}
                 onBulkInsert={handleBulkInsert}
                 isBulkInserting={bulkProgress !== null}
@@ -1339,6 +1512,28 @@ export function BaseGridPageClient({
                   }}
                   onCopyRecordUrl={handleCopyRecordUrl}
                   onClose={() => setContextMenu(null)}
+                />
+              )}
+              {columnContextMenu && (
+                <ColumnContextMenu
+                  x={columnContextMenu.x}
+                  y={columnContextMenu.y}
+                  field={columnContextMenu.field}
+                  fieldIndex={columnContextMenu.fieldIndex}
+                  isPrimary={columnContextMenu.fieldIndex === 0}
+                  onEditField={handleEditField}
+                  onDuplicateField={handleDuplicateField}
+                  onInsertLeft={handleInsertLeft}
+                  onInsertRight={handleInsertRight}
+                  onCopyFieldUrl={handleCopyFieldUrl}
+                  onEditFieldDescription={handleEditFieldDescription}
+                  onSortAscending={handleSortAscending}
+                  onSortDescending={handleSortDescending}
+                  onFilterByField={handleFilterByField}
+                  onGroupByField={handleGroupByField}
+                  onHideField={handleHideField}
+                  onDeleteField={handleDeleteField}
+                  onClose={() => setColumnContextMenu(null)}
                 />
               )}
             </main>

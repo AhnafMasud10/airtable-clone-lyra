@@ -229,6 +229,11 @@ type GridTableProps = Readonly<{
   onAddRow: () => void;
   onReorderFields: (fromIndex: number, toIndex: number) => void;
   onRowContextMenu?: (e: React.MouseEvent, rowId: string) => void;
+  onColumnContextMenu?: (
+    e: React.MouseEvent | { clientX: number; clientY: number },
+    field: GridField,
+    fieldIndex: number,
+  ) => void;
   filteredFieldIds?: Set<string>;
   onBulkInsert?: () => void;
   isBulkInserting?: boolean;
@@ -258,6 +263,7 @@ export function GridTable({
   onAddRow,
   onReorderFields,
   onRowContextMenu,
+  onColumnContextMenu,
   filteredFieldIds,
   onBulkInsert,
   isBulkInserting,
@@ -333,12 +339,12 @@ export function GridTable({
     return offsets;
   }, [fields, getColumnWidth]);
 
-  const handleColumnDragMouseDown = useCallback(
-    (e: React.MouseEvent, fieldIndex: number) => {
-      // Don't start drag from the resize handle or buttons
-      if ((e.target as HTMLElement).closest("button")) return;
-      e.preventDefault();
+  const HOLD_TO_DRAG_MS = 400;
+  const holdDragTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [holdFieldIndex, setHoldFieldIndex] = useState<number | null>(null);
 
+  const startColumnDrag = useCallback(
+    (fieldIndex: number, clientX: number) => {
       const headerEl = headerScrollRef.current;
       const wrapper = wrapperRef.current;
       if (!headerEl || !wrapper) return;
@@ -346,13 +352,14 @@ export function GridTable({
       const headerRect = headerEl.getBoundingClientRect();
       const wrapperRect = wrapper.getBoundingClientRect();
       const scrollLeft = headerEl.scrollLeft;
-      const colLeft = (columnLeftOffsets[fieldIndex] ?? 0) - scrollLeft + headerRect.left;
-      const grabOffsetX = e.clientX - colLeft;
+      const colLeft =
+        (columnLeftOffsets[fieldIndex] ?? 0) - scrollLeft + headerRect.left;
+      const grabOffsetX = clientX - colLeft;
 
       dragFieldRef.current = fieldIndex;
       setDragCol({
         fieldIndex,
-        mouseX: e.clientX,
+        mouseX: clientX,
         grabOffsetX,
         wrapperTop: wrapperRect.top,
         wrapperHeight: wrapperRect.height,
@@ -366,13 +373,12 @@ export function GridTable({
           prev ? { ...prev, mouseX: ev.clientX } : null,
         );
 
-        // Determine drop target from mouse position
         const hRect = headerEl.getBoundingClientRect();
         const sLeft = headerEl.scrollLeft;
         const relativeX = ev.clientX - hRect.left + sLeft;
 
         let targetIdx = 0;
-        for (let i = 0; i < (columnLeftOffsets.length - 1); i++) {
+        for (let i = 0; i < columnLeftOffsets.length - 1; i++) {
           const mid =
             ((columnLeftOffsets[i] ?? 0) + (columnLeftOffsets[i + 1] ?? 0)) / 2;
           if (relativeX > mid) targetIdx = i + 1;
@@ -404,6 +410,52 @@ export function GridTable({
       document.addEventListener("mouseup", onUp);
     },
     [columnLeftOffsets, fields.length, onReorderFields],
+  );
+
+  const handleColumnHeaderMouseDown = useCallback(
+    (e: React.MouseEvent, field: GridField, fieldIndex: number) => {
+      if ((e.target as HTMLElement).closest("button")) return;
+
+      // Right-click: open menu immediately
+      if (e.button === 2) {
+        e.preventDefault();
+        if (onColumnContextMenu) {
+          onColumnContextMenu(e, field, fieldIndex);
+        }
+        return;
+      }
+
+      // Left-click: hold for a moment to drag, otherwise click opens menu
+      if (e.button !== 0) return;
+
+      setHoldFieldIndex(fieldIndex);
+
+      holdDragTimerRef.current = setTimeout(() => {
+        holdDragTimerRef.current = null;
+        setHoldFieldIndex(null);
+        startColumnDrag(fieldIndex, e.clientX);
+      }, HOLD_TO_DRAG_MS);
+
+      const onUp = (ev: MouseEvent) => {
+        document.removeEventListener("mouseup", onUp);
+        setHoldFieldIndex(null);
+        if (holdDragTimerRef.current) {
+          clearTimeout(holdDragTimerRef.current);
+          holdDragTimerRef.current = null;
+          // Quick release = click, open menu
+          if (onColumnContextMenu && ev.button === 0) {
+            onColumnContextMenu(
+              { clientX: ev.clientX, clientY: ev.clientY } as React.MouseEvent,
+              field,
+              fieldIndex,
+            );
+          }
+        }
+      };
+
+      document.addEventListener("mouseup", onUp);
+    },
+    [onColumnContextMenu, startColumnDrag],
   );
 
   const columns = useMemo(
@@ -573,13 +625,18 @@ export function GridTable({
                     data-columnindex={i}
                     data-tutorial-selector-id="gridHeaderCell"
                     data-primary={isPrimary ? "true" : undefined}
-                    onMouseDown={(e) => handleColumnDragMouseDown(e, i)}
+                    onMouseDown={(e) => handleColumnHeaderMouseDown(e, field, i)}
+                    onContextMenu={(e) => e.preventDefault()}
                     className="group relative flex shrink-0 items-center border-r border-[#e6ebf2] text-[#4f5d70]"
                     style={{
                       width: colWidth,
                       height: ROW_HEIGHT,
                       opacity: isDragging ? 0.35 : 1,
-                      cursor: dragCol ? "grabbing" : "grab",
+                      cursor: dragCol
+                        ? "grabbing"
+                        : holdFieldIndex === i
+                          ? "grab"
+                          : "default",
                       backgroundColor: isFieldFiltered ? "#e6f4df" : undefined,
                     }}
                   >
@@ -616,7 +673,13 @@ export function GridTable({
                       </div>
                       <button
                         type="button"
-                        className="flex shrink-0 items-center justify-center rounded p-0.5 text-[#97a0af] hover:bg-[#e0e5ed] hover:text-[#4f5d70]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onColumnContextMenu) {
+                            onColumnContextMenu(e, field, i);
+                          }
+                        }}
+                        className="flex shrink-0 items-center justify-center rounded p-0.5 text-[#97a0af] opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[#e0e5ed] hover:text-[#4f5d70]"
                         style={{ width: 20, height: 20 }}
                         aria-label={`Open ${field.name} column menu`}
                         data-tutorial-selector-id="openColumnMenuButton"
