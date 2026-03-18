@@ -76,7 +76,7 @@ export const TableSeedInputSchema = z.object({
 
 export const TableBulkInsertRowsInputSchema = z.object({
   tableId: z.string().min(1),
-  count: z.number().int().min(1).max(1000000).default(100000),
+  count: z.number().int().min(1).max(10000).default(1000),
 });
 
 export const TableBulkInsertRowsOutputSchema = z.object({

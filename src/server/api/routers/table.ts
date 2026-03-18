@@ -383,43 +383,46 @@ export const tableRouter = createTRPCRouter({
         return { inserted: 0 };
       }
 
+      // Get current max order so new rows continue from the end
       const maxOrder = await ctx.db.record.aggregate({
         where: { tableId: input.tableId },
         _max: { order: true },
       });
-      let nextOrder = (maxOrder._max.order ?? -1) + 1;
+      const startOrder = (maxOrder._max.order ?? -1) + 1;
 
-      const batchSize = 5000;
-      let remaining = input.count;
-      let inserted = 0;
+      // Generate faker values for this batch (1K rows is fast — ~20ms)
+      const count = input.count; // typically 1000
 
-      while (remaining > 0) {
-        const currentBatchSize = Math.min(batchSize, remaining);
-        const createdRecords = await ctx.db.record.createManyAndReturn({
-          data: Array.from({ length: currentBatchSize }, (_, index) => ({
-            tableId: input.tableId,
-            order: nextOrder + index,
-          })),
-        });
+      // Create records and get IDs back
+      const records = await ctx.db.record.createManyAndReturn({
+        data: Array.from({ length: count }, (_, k) => ({
+          tableId: input.tableId,
+          order: startOrder + k,
+        })),
+        select: { id: true },
+      });
 
-        const cellBatch = createdRecords.flatMap((record) =>
-          fields.map((field) => ({
-            recordId: record.id,
+      // Build cells with faker values
+      const cells: { recordId: string; fieldId: string; value: string }[] = [];
+      for (let k = 0; k < records.length; k++) {
+        for (const field of fields) {
+          cells.push({
+            recordId: records[k]!.id,
             fieldId: field.id,
             value: sampleValueForField(field.type),
-          })),
-        );
-
-        if (cellBatch.length > 0) {
-          await ctx.db.cell.createMany({ data: cellBatch });
+          });
         }
-
-        inserted += currentBatchSize;
-        remaining -= currentBatchSize;
-        nextOrder += currentBatchSize;
       }
 
-      return { inserted };
+      // Insert cells in chunks to stay under PG 32766 param limit
+      const CELL_CHUNK = 3000;
+      for (let c = 0; c < cells.length; c += CELL_CHUNK) {
+        await ctx.db.cell.createMany({
+          data: cells.slice(c, c + CELL_CHUNK),
+        });
+      }
+
+      return { inserted: count };
     }),
 
   getGridWindow: protectedProcedure

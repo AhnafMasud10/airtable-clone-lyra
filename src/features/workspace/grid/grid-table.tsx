@@ -198,6 +198,9 @@ type GridTableProps = Readonly<{
   onReorderFields: (fromIndex: number, toIndex: number) => void;
   onRowContextMenu?: (e: React.MouseEvent, rowId: string) => void;
   filteredFieldIds?: Set<string>;
+  onBulkInsert?: () => void;
+  isBulkInserting?: boolean;
+  bulkProgress?: { inserted: number; total: number } | null;
 }>;
 
 export function GridTable({
@@ -224,6 +227,9 @@ export function GridTable({
   onReorderFields,
   onRowContextMenu,
   filteredFieldIds,
+  onBulkInsert,
+  isBulkInserting,
+  bulkProgress,
 }: GridTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
@@ -386,21 +392,27 @@ export function GridTable({
     getCoreRowModel: getCoreRowModel(),
   });
 
+  // Virtualize against totalCount so the scrollbar reflects all rows,
+  // even ones not yet fetched. Unloaded rows render as skeletons.
+  const loadedRowCount = table.getRowModel().rows.length;
+  const virtualRowCount = Math.max(loadedRowCount, totalCount);
+
   const rowVirtualizer = useVirtualizer({
-    count: table.getRowModel().rows.length + (hasNextPage ? 1 : 0),
+    count: virtualRowCount,
     getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_HEIGHT,
-    overscan: 30,
+    overscan: 50,
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
+  // Fetch next page when scrolling near the edge of loaded data
   const lastVirtualItem = virtualItems.at(-1);
   if (
     lastVirtualItem &&
     hasNextPage &&
     !isFetchingNextPage &&
-    lastVirtualItem.index >= table.getRowModel().rows.length - 40
+    lastVirtualItem.index >= loadedRowCount - 40
   ) {
     onFetchNextPage();
   }
@@ -681,15 +693,17 @@ export function GridTable({
               position: "relative",
               width: "100%",
               minWidth: totalContentWidth,
+              willChange: "transform",
             }}
           >
             {virtualItems.map((item) => {
               const row = table.getRowModel().rows[item.index];
 
+              // Skeleton row for not-yet-loaded data
               if (!row) {
                 return (
                   <div
-                    key={`loader-${item.key}`}
+                    key={`skeleton-${item.key}`}
                     className="absolute flex border-b border-[#d2d9e3]"
                     style={{
                       transform: `translateY(${item.start}px)`,
@@ -699,15 +713,31 @@ export function GridTable({
                     }}
                   >
                     <div
-                      className="sticky left-0 z-10 flex shrink-0 items-center border-r border-b border-[#d2d9e3] bg-white"
+                      className="sticky left-0 z-10 flex shrink-0 items-center justify-center border-r border-b border-[#d2d9e3] bg-white"
                       style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
-                    />
-                    <div
-                      className="flex items-center px-3 text-xs text-[#6d7887]"
-                      style={{ height: ROW_HEIGHT }}
                     >
-                      {hasNextPage ? "Loading more..." : "End of rows"}
+                      <span className="text-xs text-[#c5cbd4]">
+                        {item.index + 1}
+                      </span>
                     </div>
+                    {fields.map((field, colIdx) => (
+                      <div
+                        key={field.id}
+                        className="flex shrink-0 items-center border-r border-[#e6ebf2] px-3"
+                        style={{
+                          width: getColumnWidth(field.id, colIdx),
+                          height: ROW_HEIGHT,
+                        }}
+                      >
+                        <div
+                          className="animate-pulse rounded bg-[#e8ecf1]"
+                          style={{
+                            width: `${45 + ((item.index * 7 + colIdx * 13) % 40)}%`,
+                            height: 12,
+                          }}
+                        />
+                      </div>
+                    ))}
                   </div>
                 );
               }
@@ -965,6 +995,21 @@ export function GridTable({
 
         {/* Record count */}
         <span>{totalCount.toLocaleString()} records</span>
+
+        {/* Bulk insert 100K rows */}
+        {onBulkInsert && (
+          <button
+            type="button"
+            onClick={onBulkInsert}
+            disabled={isBulkInserting}
+            className="ml-auto rounded border border-[#d9dee7] bg-white px-2 py-0.5 text-[#4f5d70] hover:bg-[#f0f2f5] disabled:opacity-50"
+            style={{ height: 26 }}
+          >
+            {bulkProgress
+              ? `Inserting… ${bulkProgress.inserted.toLocaleString()} / ${bulkProgress.total.toLocaleString()}`
+              : "Add 100K rows"}
+          </button>
+        )}
       </div>
 
       {showCreateFieldPanel && addButtonRef.current && (

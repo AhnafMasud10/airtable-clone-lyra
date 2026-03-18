@@ -189,12 +189,11 @@ export function BaseGridPageClient({
     },
   });
 
-  const bulkInsertRows = api.table.bulkInsertRows.useMutation({
-    onSuccess: async () => {
-      if (!selectedTableId) return;
-      await utils.table.getGridWindow.invalidate({ tableId: selectedTableId });
-    },
-  });
+  const bulkInsertRows = api.table.bulkInsertRows.useMutation();
+  const [bulkProgress, setBulkProgress] = useState<{
+    inserted: number;
+    total: number;
+  } | null>(null);
 
   const reorderFields = api.field.reorder.useMutation({
     onMutate: async ({ fieldIds }) => {
@@ -646,7 +645,12 @@ export function BaseGridPageClient({
     () => gridQuery.data?.pages.flatMap((page) => page.rows) ?? [],
     [gridQuery.data],
   );
-  const totalCount = gridQuery.data?.pages[0]?.total ?? 0;
+  const serverTotal = gridQuery.data?.pages[0]?.total ?? 0;
+  // During bulk insert, use the higher of server total or progress count
+  // so the virtualizer shows the full scroll height immediately
+  const totalCount = bulkProgress
+    ? Math.max(serverTotal, bulkProgress.inserted)
+    : serverTotal;
 
   // Set of field IDs that have an active (complete) filter applied
   const filteredFieldIds = useMemo(() => {
@@ -759,23 +763,49 @@ export function BaseGridPageClient({
     seedTable.mutate({ baseId, name });
   }, [baseId, seedTable, tablesQuery.data]);
 
-  const handleBulkInsert = useCallback(() => {
-    if (!selectedTableId) return;
-    bulkInsertRows.mutate({ tableId: selectedTableId, count: 100000 });
-  }, [selectedTableId, bulkInsertRows]);
+  const handleBulkInsert = useCallback(async () => {
+    if (!selectedTableId || bulkProgress) return;
+    const BATCH = 1000;
+    const TOTAL = 100000;
+    const CONCURRENCY = 5;
+    const totalBatches = TOTAL / BATCH;
 
-  const handleCreateView = useCallback(() => {
-    if (!selectedTableId) return;
-    const name = globalThis.prompt("View name")?.trim();
-    if (!name) return;
-    // New view starts with a clean config (no filters/sorts/hidden fields)
-    createView.mutate({
-      tableId: selectedTableId,
-      name,
-      type: "GRID",
-      config: { globalSearch: "", filters: [], sorts: [], hiddenFieldIds: [] },
-    });
-  }, [selectedTableId, createView]);
+    setBulkProgress({ inserted: 0, total: TOTAL });
+
+    // First batch — insert and WAIT for grid refresh so rows appear instantly
+    await bulkInsertRows.mutateAsync({ tableId: selectedTableId, count: BATCH });
+    setBulkProgress({ inserted: BATCH, total: TOTAL });
+    await utils.table.getGridWindow.invalidate(gridInput);
+
+    // Remaining batches — fire with concurrency, non-blocking refresh
+    let inserted = BATCH;
+    for (let i = 1; i < totalBatches; i += CONCURRENCY) {
+      const chunkSize = Math.min(CONCURRENCY, totalBatches - i);
+      await Promise.all(
+        Array.from({ length: chunkSize }, () =>
+          bulkInsertRows.mutateAsync({ tableId: selectedTableId, count: BATCH }),
+        ),
+      );
+      inserted += chunkSize * BATCH;
+      setBulkProgress({ inserted, total: TOTAL });
+      void utils.table.getGridWindow.invalidate(gridInput);
+    }
+
+    setBulkProgress(null);
+  }, [selectedTableId, bulkProgress, bulkInsertRows, utils, gridInput]);
+
+  const handleCreateView = useCallback(
+    (type: string, name: string) => {
+      if (!selectedTableId) return;
+      createView.mutate({
+        tableId: selectedTableId,
+        name,
+        type: type as "GRID" | "KANBAN" | "CALENDAR" | "GALLERY" | "FORM",
+        config: { globalSearch: "", filters: [], sorts: [], hiddenFieldIds: [] },
+      });
+    },
+    [selectedTableId, createView],
+  );
 
   const handleSelectView = useCallback(
     (view: ViewItem) => {
@@ -1290,6 +1320,9 @@ export function BaseGridPageClient({
                 onAddRow={handleAddRow}
                 onRowContextMenu={handleRowContextMenu}
                 filteredFieldIds={filteredFieldIds}
+                onBulkInsert={handleBulkInsert}
+                isBulkInserting={bulkProgress !== null}
+                bulkProgress={bulkProgress}
               />
               {contextMenu && (
                 <RowContextMenu

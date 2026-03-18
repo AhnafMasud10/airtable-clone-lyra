@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { auth } from "~/server/auth";
 import { UserMenu } from "~/features/auth/user-menu";
 
@@ -6,13 +5,13 @@ export async function HomeTopbar() {
   const session = await auth();
   return (
     <header className="flex shrink-0 items-center bg-white shadow-sm">
-      <nav className="flex w-full items-center pl-1 pr-2">
+      <nav className="flex w-full items-center pr-2 pl-1">
         {/* Left: hamburger + logo */}
         <div className="flex items-center">
           <div className="flex flex-auto items-center">
             <button
               type="button"
-              className="flex cursor-pointer items-center rounded px-1 py-0.5 text-[#666] hover:text-[#333] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="flex cursor-pointer items-center rounded px-1 py-0.5 text-[#666] hover:text-[#333] focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
               aria-label="Collapse sidebar"
             >
               <svg
@@ -25,9 +24,9 @@ export async function HomeTopbar() {
                 <path d="M2 3.5h12a.5.5 0 0 1 0 1H2a.5.5 0 0 1 0-1zm0 4h12a.5.5 0 0 1 0 1H2a.5.5 0 0 1 0-1zm0 4h12a.5.5 0 0 1 0 1H2a.5.5 0 0 1 0-1z" />
               </svg>
             </button>
-            <Link
+            <a
               aria-label="Airtable home"
-              className="flex items-center rounded p-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="flex items-center rounded p-1.5 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
               href="/"
             >
               <svg
@@ -60,7 +59,7 @@ export async function HomeTopbar() {
                   />
                 </g>
               </svg>
-            </Link>
+            </a>
             <div className="flex-auto" />
           </div>
         </div>
@@ -70,7 +69,7 @@ export async function HomeTopbar() {
           <div className="flex w-full items-center">
             <button
               type="button"
-              className="flex w-full cursor-pointer items-center rounded-full bg-white px-3 py-1.5 shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="flex w-full cursor-pointer items-center rounded-full bg-white px-3 py-1.5 shadow-sm transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
             >
               <svg
                 width="16"
@@ -95,7 +94,7 @@ export async function HomeTopbar() {
             {/* Help button */}
             <button
               type="button"
-              className="flex cursor-pointer items-center justify-center rounded-full text-[#666] hover:text-[#333] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="flex cursor-pointer items-center justify-center rounded-full text-[#666] hover:text-[#333] focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
               aria-label="Help menu"
               style={{ height: 28, width: 28 }}
             >
@@ -113,7 +112,7 @@ export async function HomeTopbar() {
             {/* Notifications bell */}
             <button
               type="button"
-              className="relative flex cursor-pointer items-center justify-center rounded-full bg-white shadow-sm hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="relative flex cursor-pointer items-center justify-center rounded-full bg-white shadow-sm hover:shadow focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
               aria-label="No unseen notifications"
               style={{ height: 28, width: 28, margin: "0 0.75rem" }}
             >
