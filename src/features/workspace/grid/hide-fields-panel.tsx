@@ -64,7 +64,10 @@ function PillToggle({ checked, onChange }: Readonly<{ checked: boolean; onChange
     <div
       role="switch"
       aria-checked={checked}
-      onClick={onChange}
+      onClick={(e) => {
+        e.stopPropagation();
+        onChange();
+      }}
       className="flex-none cursor-pointer rounded-full flex items-center transition-colors duration-150"
       style={{
         width: 28,
