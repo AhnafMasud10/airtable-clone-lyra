@@ -8,7 +8,10 @@ type TableTabsProps = Readonly<{
   tables: TableSummary[];
   selectedTableId: string | null;
   onSelectTable: (tableId: string) => void;
+  onPrefetchTable?: (tableId: string) => void;
   onAddTable: () => void;
+  onSeedTable: () => void;
+  isSeeding: boolean;
   onBulkInsert: () => void;
   isBulkInserting: boolean;
 }>;
@@ -91,7 +94,10 @@ export function TableTabs({
   tables,
   selectedTableId,
   onSelectTable,
+  onPrefetchTable,
   onAddTable,
+  onSeedTable,
+  isSeeding,
   onBulkInsert: _onBulkInsert,
   isBulkInserting: _isBulkInserting,
 }: TableTabsProps) {
@@ -152,6 +158,7 @@ export function TableTabs({
                   <button
                     type="button"
                     onClick={() => onSelectTable(tableItem.id)}
+                    onMouseEnter={() => onPrefetchTable?.(tableItem.id)}
                     className="flex h-full items-center"
                     style={{
                       paddingLeft: "12px",
@@ -224,6 +231,11 @@ export function TableTabs({
                   onAddTable();
                   closeMenu();
                 }}
+                onSeedTable={() => {
+                  onSeedTable();
+                  closeMenu();
+                }}
+                isSeeding={isSeeding}
                 onClose={closeMenu}
                 addButtonRef={addButtonRef}
               />,
@@ -258,12 +270,16 @@ export function TableTabs({
 
 type AddOrImportMenuProps = Readonly<{
   onStartFromScratch: () => void;
+  onSeedTable: () => void;
+  isSeeding: boolean;
   onClose: () => void;
   addButtonRef: React.RefObject<HTMLButtonElement | null>;
 }>;
 
 function AddOrImportMenu({
   onStartFromScratch,
+  onSeedTable,
+  isSeeding,
   onClose,
   addButtonRef,
 }: AddOrImportMenuProps) {
@@ -274,10 +290,17 @@ function AddOrImportMenu({
     const btn = addButtonRef.current;
     if (btn) {
       const rect = btn.getBoundingClientRect();
-      setPosition({
-        top: rect.bottom + 4,
-        left: rect.left,
-      });
+      const maxHeight = Math.min(679, window.innerHeight - 100);
+      let top = rect.bottom + 4;
+      if (top + maxHeight > window.innerHeight - 8) {
+        top = Math.max(8, window.innerHeight - maxHeight - 8);
+      }
+      let left = rect.left;
+      if (left + 280 > window.innerWidth - 8) {
+        left = window.innerWidth - 280 - 8;
+      }
+      if (left < 8) left = 8;
+      setPosition({ top, left });
     }
   }, [addButtonRef]);
 
@@ -306,6 +329,7 @@ function AddOrImportMenu({
   return (
     <div
       ref={menuRef}
+      data-popup
       role="dialog"
       tabIndex={-1}
       className="fixed z-[9999] rounded-lg bg-white p-1"
@@ -314,8 +338,9 @@ function AddOrImportMenu({
         left: position.left,
         width: "280px",
         minWidth: "280px",
-        maxHeight: "min(679px, calc(100vh - 100px))",
+        maxHeight: "min(679px, calc(100vh - 16px))",
         overflowY: "auto",
+        maxWidth: "calc(100vw - 16px)",
         boxShadow: SHADOW_MENU,
       }}
     >
@@ -337,6 +362,21 @@ function AddOrImportMenu({
             aria-label="Start from scratch"
           >
             <span className="flex-auto truncate">Start from scratch</span>
+          </button>
+        </li>
+        <li role="menuitem" tabIndex={-1}>
+          <button
+            type="button"
+            onClick={onSeedTable}
+            disabled={isSeeding}
+            className="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-black/5 disabled:opacity-50"
+            style={{ color: FG_DEFAULT }}
+            aria-label="Seed sample data"
+          >
+            <span className="flex-none text-base mr-2">🌱</span>
+            <span className="flex-auto truncate">
+              {isSeeding ? "Seeding..." : "Seed sample data (8 cols, 30 rows)"}
+            </span>
           </button>
         </li>
 

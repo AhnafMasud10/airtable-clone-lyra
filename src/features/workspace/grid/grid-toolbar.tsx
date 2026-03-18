@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { GridField, GridFilter } from "./types";
+import type { GridField, GridFilter, GridSort } from "./types";
 import { HideFieldsPanel } from "./hide-fields-panel";
 import { FilterPanel } from "./filter-panel";
+import { SortPanel } from "./sort-panel";
 
 type GridToolbarProps = Readonly<{
   selectedTableName: string;
@@ -12,6 +13,7 @@ type GridToolbarProps = Readonly<{
   fields: GridField[];
   fieldsCount: number;
   selectedTableId: string | null;
+  viewName: string;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
   allFields: GridField[];
@@ -21,6 +23,10 @@ type GridToolbarProps = Readonly<{
   onShowAll: () => void;
   filters: GridFilter[];
   onFiltersChange: (filters: GridFilter[]) => void;
+  sorts: GridSort[];
+  onSortsChange: (sorts: GridSort[]) => void;
+  showSearch: boolean;
+  onToggleSearch: () => void;
 }>;
 
 function ListIcon() {
@@ -135,6 +141,7 @@ export function GridToolbar({
   selectedTableName,
   globalSearch,
   onGlobalSearchChange,
+  viewName,
   sidebarCollapsed,
   onToggleSidebar,
   allFields,
@@ -144,11 +151,17 @@ export function GridToolbar({
   onShowAll,
   filters,
   onFiltersChange,
+  sorts,
+  onSortsChange,
+  showSearch,
+  onToggleSearch,
 }: GridToolbarProps) {
   const [showHidePanel, setShowHidePanel] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [showSortPanel, setShowSortPanel] = useState(false);
   const hideButtonRef = useRef<HTMLButtonElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const sortButtonRef = useRef<HTMLButtonElement>(null);
 
   const hiddenCount = hiddenFieldIds.length;
   const hiddenLabel =
@@ -166,6 +179,12 @@ export function GridToolbar({
       ? `${activeFilterCount} filter${activeFilterCount === 1 ? "" : "s"}`
       : "Filter";
   const filterActive = showFilterPanel || activeFilterCount > 0;
+
+  const sortLabel =
+    sorts.length > 0
+      ? `${sorts.length} sort${sorts.length === 1 ? "" : "s"}`
+      : "Sort";
+  const sortActive = showSortPanel || sorts.length > 0;
 
   return (
     <section
@@ -208,7 +227,7 @@ export function GridToolbar({
                 color: "rgb(29, 31, 37)",
               }}
             >
-              Grid view
+              {viewName}
             </span>
             <ChevronDownIcon />
           </button>
@@ -316,28 +335,43 @@ export function GridToolbar({
           />
 
           {/* Sort */}
-          <ToolbarButton
-            icon={
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-                className="flex-none"
-                style={{ shapeRendering: "geometricPrecision" }}
-              >
-                <path
-                  d="M4.5 2.5v11M4.5 13.5l-2-2m2 2 2-2M11.5 13.5v-11M11.5 2.5l-2 2m2-2 2 2"
-                  stroke="currentColor"
-                  strokeWidth="1.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-              </svg>
-            }
-            label="Sort"
-          />
+          <button
+            ref={sortButtonRef}
+            type="button"
+            onClick={() => setShowSortPanel((v) => !v)}
+            className={`flex cursor-pointer items-center rounded px-2 py-1 hover:bg-[rgb(229,233,240)] ${sortActive ? "text-[rgb(22,110,225)]" : "text-[rgb(97,102,112)]"}`}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              className="flex-none"
+              style={{ shapeRendering: "geometricPrecision" }}
+            >
+              <path
+                d="M4.5 2.5v11M4.5 13.5l-2-2m2 2 2-2M11.5 13.5v-11M11.5 2.5l-2 2m2-2 2 2"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+              />
+            </svg>
+            <div className="ml-1 max-w-24 truncate" style={{ fontSize: 13 }}>
+              {sortLabel}
+            </div>
+          </button>
+
+          {showSortPanel && (
+            <SortPanel
+              sorts={sorts}
+              onSortsChange={onSortsChange}
+              allFields={allFields}
+              onClose={() => setShowSortPanel(false)}
+              anchorRef={sortButtonRef}
+            />
+          )}
 
           {/* Color */}
           <ToolbarButton
@@ -411,25 +445,26 @@ export function GridToolbar({
         {/* Search toggle */}
         <button
           type="button"
-          className="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded text-[rgb(97,102,112)] hover:bg-[rgb(229,233,240)]"
+          onClick={onToggleSearch}
+          className={`ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded hover:bg-[rgb(229,233,240)] ${showSearch || globalSearch ? "text-[rgb(22,110,225)]" : "text-[rgb(97,102,112)]"}`}
           aria-label="toggle view search input"
         >
           <MagnifyingGlassIcon />
         </button>
-      </div>
 
-      {/* Hidden expanded search (shows when search is active) */}
-      {globalSearch !== "" && (
-        <div className="absolute top-1 right-3 z-10">
-          <input
-            value={globalSearch}
-            onChange={(e) => onGlobalSearchChange(e.target.value)}
-            placeholder={`Search ${selectedTableName}`}
-            className="h-7 w-48 rounded border border-[rgb(22,110,225)] bg-white px-2 text-[13px] outline-none"
-            autoFocus
-          />
-        </div>
-      )}
+        {/* Inline search input */}
+        {showSearch && (
+          <div className="ml-1 flex items-center">
+            <input
+              value={globalSearch}
+              onChange={(e) => onGlobalSearchChange(e.target.value)}
+              placeholder={`Search ${selectedTableName}`}
+              className="h-7 w-48 rounded border border-[rgb(22,110,225)] bg-white px-2 text-[13px] outline-none"
+              autoFocus
+            />
+          </div>
+        )}
+      </div>
     </section>
   );
 }

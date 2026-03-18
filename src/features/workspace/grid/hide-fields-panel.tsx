@@ -143,16 +143,18 @@ export function HideFieldsPanel({
   const panel = (
     <div
       ref={panelRef}
-      className="rounded-xl bg-white"
+      data-popup
+      className="rounded-xl bg-white overflow-hidden"
       style={{
         position: "fixed",
-        top: pos.top,
-        left: pos.left,
+        top: Math.min(pos.top, window.innerHeight - 200),
+        left: Math.min(pos.left, window.innerWidth - 340),
         minWidth: "20rem",
+        maxWidth: "calc(100vw - 16px)",
+        maxHeight: "calc(100vh - 16px)",
         zIndex: 9999,
         fontFamily: FONT_FAMILY,
         boxShadow: "0 0 0 1px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.12)",
-        overflow: "hidden",
       }}
     >
       {/* Search row */}
@@ -182,7 +184,7 @@ export function HideFieldsPanel({
       {/* Field list */}
       <div
         className="overflow-y-auto px-2 pt-1 pb-1 light-scrollbar"
-        style={{ minHeight: 100, maxHeight: "calc(100vh - 380px)" }}
+        style={{ minHeight: 100, maxHeight: "min(400px, calc(100vh - 200px))" }}
       >
         {filteredFields.map((field) => {
           const isVisible = !hiddenFieldIds.includes(field.id);

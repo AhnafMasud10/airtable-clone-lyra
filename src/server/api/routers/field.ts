@@ -4,6 +4,7 @@ import {
   FieldDeleteInputSchema,
   FieldForTableSchema,
   FieldListByTableInputSchema,
+  FieldReorderInputSchema,
   FieldUpdateInputSchema,
 } from "~/types/base-table";
 
@@ -48,6 +49,25 @@ export const fieldRouter = createTRPCRouter({
           ...(input.type ? { type: input.type } : {}),
           ...(typeof input.order === "number" ? { order: input.order } : {}),
         },
+      });
+    }),
+
+  reorder: protectedProcedure
+    .input(FieldReorderInputSchema)
+    .output(FieldForTableSchema.array())
+    .mutation(async ({ ctx, input }) => {
+      await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
+      await ctx.db.$transaction(
+        input.fieldIds.map((fieldId, index) =>
+          ctx.db.field.update({
+            where: { id: fieldId },
+            data: { order: index },
+          }),
+        ),
+      );
+      return ctx.db.field.findMany({
+        where: { tableId: input.tableId },
+        orderBy: { order: "asc" },
       });
     }),
 

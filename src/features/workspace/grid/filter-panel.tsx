@@ -1,8 +1,36 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { GridField, GridFilter } from "./types";
+
+const DROPDOWN_GAP = 4;
+const DROPDOWN_MAX_HEIGHT = 260;
+
+function usePopoutPosition(triggerRef: React.RefObject<HTMLElement | null>, open: boolean) {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) {
+      setPos(null);
+      return;
+    }
+    const rect = triggerRef.current.getBoundingClientRect();
+    const padding = 8;
+    let top = rect.bottom + DROPDOWN_GAP;
+    let left = rect.left;
+    if (left + 208 > window.innerWidth - padding) {
+      left = window.innerWidth - 208 - padding;
+    }
+    if (left < padding) left = padding;
+    const spaceBelow = window.innerHeight - rect.bottom - padding;
+    const spaceAbove = rect.top - padding;
+    if (spaceBelow < DROPDOWN_MAX_HEIGHT && spaceAbove > spaceBelow) {
+      top = Math.max(padding, rect.top - DROPDOWN_MAX_HEIGHT - DROPDOWN_GAP);
+    }
+    setPos({ top, left });
+  }, [open, triggerRef]);
+  return pos;
+}
 
 type FilterPanelProps = Readonly<{
   filters: GridFilter[];
@@ -91,7 +119,7 @@ function TrashIcon() {
   );
 }
 
-function DragIcon() {
+function EllipsisIcon() {
   return (
     <svg
       width="16"
@@ -101,12 +129,9 @@ function DragIcon() {
       aria-hidden="true"
       style={{ shapeRendering: "geometricPrecision" }}
     >
-      <circle cx="5.5" cy="4" r="1.2" fill="currentColor" />
-      <circle cx="5.5" cy="8" r="1.2" fill="currentColor" />
-      <circle cx="5.5" cy="12" r="1.2" fill="currentColor" />
-      <circle cx="10.5" cy="4" r="1.2" fill="currentColor" />
-      <circle cx="10.5" cy="8" r="1.2" fill="currentColor" />
-      <circle cx="10.5" cy="12" r="1.2" fill="currentColor" />
+      <circle cx="8" cy="3" r="1.25" fill="currentColor" />
+      <circle cx="8" cy="8" r="1.25" fill="currentColor" />
+      <circle cx="8" cy="13" r="1.25" fill="currentColor" />
     </svg>
   );
 }
@@ -175,12 +200,24 @@ function FilterRow({
   onChange,
   onDelete,
 }: FilterRowProps) {
-  const [openDropdown, setOpenDropdown] = useState<"field" | "operator" | null>(
-    null,
-  );
+  const [openDropdown, setOpenDropdown] = useState<
+    "field" | "operator" | "conjunction" | null
+  >(null);
   const [fieldSearch, setFieldSearch] = useState("");
   const [opSearch, setOpSearch] = useState("");
   const rowRef = useRef<HTMLDivElement>(null);
+  const fieldTriggerRef = useRef<HTMLButtonElement>(null);
+  const operatorTriggerRef = useRef<HTMLButtonElement>(null);
+  const conjunctionTriggerRef = useRef<HTMLButtonElement>(null);
+  const fieldPos = usePopoutPosition(fieldTriggerRef, openDropdown === "field");
+  const operatorPos = usePopoutPosition(
+    operatorTriggerRef,
+    openDropdown === "operator",
+  );
+  const conjunctionPos = usePopoutPosition(
+    conjunctionTriggerRef,
+    openDropdown === "conjunction",
+  );
 
   const selectedField = allFields.find((f) => f.id === filter.fieldId);
   const ops = getOps(filter.type);
@@ -190,9 +227,10 @@ function FilterRow({
   useEffect(() => {
     if (!openDropdown) return;
     function handleDown(e: MouseEvent) {
-      if (rowRef.current && !rowRef.current.contains(e.target as Node)) {
-        setOpenDropdown(null);
-      }
+      const target = e.target as Node;
+      if (rowRef.current?.contains(target)) return;
+      if ((target as Element).closest?.("[data-filter-dropdown]")) return;
+      setOpenDropdown(null);
     }
     document.addEventListener("mousedown", handleDown);
     return () => document.removeEventListener("mousedown", handleDown);
@@ -228,8 +266,9 @@ function FilterRow({
     }
   };
 
-  const toggleConjunction = () => {
-    onChange({ ...filter, conjunction: conjunction === "and" ? "or" : "and" });
+  const handleConjunctionSelect = (c: "and" | "or") => {
+    onChange({ ...filter, conjunction: c });
+    setOpenDropdown(null);
   };
 
   const filteredFields = allFields.filter((f) =>
@@ -240,47 +279,72 @@ function FilterRow({
   );
 
   return (
-    <div ref={rowRef} className="flex w-full" style={{ height: "2.5rem" }}>
-      {/* Prefix: "Where" label or "and/or" conjunction picker */}
+    <div
+      ref={rowRef}
+      className="flex w-full items-center gap-2"
+      style={{ minHeight: 38 }}
+    >
+      {/* Prefix: "Where" label or "and/or" conjunction dropdown */}
       <div
-        className="flex shrink-0 items-center px-1"
-        style={{ width: "4.5rem", paddingBottom: "0.5rem" }}
+        className="flex shrink-0 items-center"
+        style={{ width: 72 }}
       >
         {isFirst ? (
-          <div className="flex h-full w-full flex-auto items-center px-1 text-[13px] text-[rgb(29,31,37)]">
-            Where
-          </div>
+          <div className="px-1 text-[13px] text-[rgb(29,31,37)]">Where</div>
         ) : (
-          <div className="h-full w-full">
+          <div className="relative h-[30px] w-full">
             <button
+              ref={conjunctionTriggerRef}
               type="button"
-              onClick={toggleConjunction}
-              className="flex h-full w-full flex-auto items-center rounded border border-[rgb(214,218,226)] bg-white px-1 text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)] focus:outline-none"
+              onClick={() =>
+                setOpenDropdown((d) =>
+                  d === "conjunction" ? null : "conjunction",
+                )
+              }
+              className="flex h-full w-full flex-auto items-center justify-between rounded border border-[rgb(214,218,226)] bg-white px-2 text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)] focus:outline-none"
             >
-              <div className="flex flex-auto items-center justify-between">
-                <div>{conjunction}</div>
-                <ChevronDown />
-              </div>
+              <span>{conjunction}</span>
+              <ChevronDown />
             </button>
+            {openDropdown === "conjunction" &&
+              conjunctionPos &&
+              createPortal(
+                <div
+                  data-popup
+                  data-filter-dropdown
+                  className="fixed z-[10000] w-28 rounded-lg border border-[rgb(214,218,226)] bg-white py-1 shadow-lg"
+                  style={{
+                    top: conjunctionPos.top,
+                    left: conjunctionPos.left,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleConjunctionSelect("and")}
+                    className="flex w-full items-center px-3 py-2 text-left text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)]"
+                  >
+                    and
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleConjunctionSelect("or")}
+                    className="flex w-full items-center px-3 py-2 text-left text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)]"
+                  >
+                    or
+                  </button>
+                </div>,
+                document.body,
+              )}
           </div>
         )}
       </div>
 
       {/* Main filter control row */}
-      <div
-        className="flex flex-auto items-center"
-        style={{
-          paddingRight: "0.5rem",
-          height: "2rem",
-          marginTop: "auto",
-          marginBottom: "auto",
-        }}
-      >
+      <div className="flex min-w-0 flex-1 items-center">
         <div className="flex w-full items-stretch">
-          {/* Combined bordered box */}
           <div
             className="flex items-stretch rounded border border-[rgb(214,218,226)] bg-white"
-            style={{ height: 30, flex: 1 }}
+            style={{ height: 30, flex: 1, minWidth: 320 }}
           >
             {/* Field selector — ~125px with right border */}
             <div
@@ -288,6 +352,7 @@ function FilterRow({
               style={{ width: 125 }}
             >
               <button
+                ref={fieldTriggerRef}
                 type="button"
                 onClick={() => {
                   setOpenDropdown((d) => (d === "field" ? null : "field"));
@@ -302,32 +367,46 @@ function FilterRow({
                   <ChevronDown />
                 </div>
               </button>
-              {openDropdown === "field" && (
-                <div className="absolute top-full left-0 z-50 mt-1 w-52 rounded-lg border border-[rgb(214,218,226)] bg-white shadow-lg">
-                  <div className="border-b border-[rgb(214,218,226)] px-3 py-2">
-                    <input
-                      type="text"
-                      value={fieldSearch}
-                      onChange={(e) => setFieldSearch(e.target.value)}
-                      placeholder="Find a field"
-                      className="w-full bg-transparent text-[13px] text-[rgb(29,31,37)] placeholder-[rgb(150,155,165)] outline-none"
-                      autoFocus
-                    />
-                  </div>
-                  <div className="max-h-52 overflow-y-auto py-1">
-                    {filteredFields.map((f) => (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => handleFieldSelect(f)}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)]"
-                      >
-                        {f.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {openDropdown === "field" &&
+                fieldPos &&
+                createPortal(
+                  <div
+                    data-popup
+                    data-filter-dropdown
+                    className="fixed z-[10000] w-52 rounded-lg border border-[rgb(214,218,226)] bg-white shadow-lg"
+                    style={{
+                      top: fieldPos.top,
+                      left: fieldPos.left,
+                    }}
+                  >
+                    <div className="border-b border-[rgb(214,218,226)] px-3 py-2">
+                      <input
+                        type="text"
+                        value={fieldSearch}
+                        onChange={(e) => setFieldSearch(e.target.value)}
+                        placeholder="Find a field"
+                        className="w-full bg-transparent text-[13px] text-[rgb(29,31,37)] placeholder-[rgb(150,155,165)] outline-none"
+                        autoFocus
+                      />
+                    </div>
+                    <div
+                      className="overflow-y-auto py-1"
+                      style={{ maxHeight: DROPDOWN_MAX_HEIGHT }}
+                    >
+                      {filteredFields.map((f) => (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => handleFieldSelect(f)}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)]"
+                        >
+                          {f.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>,
+                  document.body,
+                )}
             </div>
 
             {/* Operator selector — ~125px with right border */}
@@ -336,6 +415,7 @@ function FilterRow({
               style={{ width: 125 }}
             >
               <button
+                ref={operatorTriggerRef}
                 type="button"
                 onClick={() => {
                   setOpenDropdown((d) =>
@@ -350,32 +430,46 @@ function FilterRow({
                   <ChevronDown />
                 </div>
               </button>
-              {openDropdown === "operator" && (
-                <div className="absolute top-full left-0 z-50 mt-1 w-52 rounded-lg border border-[rgb(214,218,226)] bg-white shadow-lg">
-                  <div className="border-b border-[rgb(214,218,226)] px-3 py-2">
-                    <input
-                      type="text"
-                      value={opSearch}
-                      onChange={(e) => setOpSearch(e.target.value)}
-                      placeholder="Find an operator"
-                      className="w-full bg-transparent text-[13px] text-[rgb(29,31,37)] placeholder-[rgb(150,155,165)] outline-none"
-                      autoFocus
-                    />
-                  </div>
-                  <div className="max-h-52 overflow-y-auto py-1">
-                    {filteredOps.map((o) => (
-                      <button
-                        key={o.op}
-                        type="button"
-                        onClick={() => handleOpSelect(o.op)}
-                        className="flex w-full items-center px-3 py-2 text-left text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)]"
-                      >
-                        {o.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {openDropdown === "operator" &&
+                operatorPos &&
+                createPortal(
+                  <div
+                    data-popup
+                    data-filter-dropdown
+                    className="fixed z-[10000] w-52 rounded-lg border border-[rgb(214,218,226)] bg-white shadow-lg"
+                    style={{
+                      top: operatorPos.top,
+                      left: operatorPos.left,
+                    }}
+                  >
+                    <div className="border-b border-[rgb(214,218,226)] px-3 py-2">
+                      <input
+                        type="text"
+                        value={opSearch}
+                        onChange={(e) => setOpSearch(e.target.value)}
+                        placeholder="Find an operator"
+                        className="w-full bg-transparent text-[13px] text-[rgb(29,31,37)] placeholder-[rgb(150,155,165)] outline-none"
+                        autoFocus
+                      />
+                    </div>
+                    <div
+                      className="overflow-y-auto py-1"
+                      style={{ maxHeight: DROPDOWN_MAX_HEIGHT }}
+                    >
+                      {filteredOps.map((o) => (
+                        <button
+                          key={o.op}
+                          type="button"
+                          onClick={() => handleOpSelect(o.op)}
+                          className="flex w-full items-center px-3 py-2 text-left text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)]"
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>,
+                  document.body,
+                )}
             </div>
 
             {/* Value input — flex-auto with right border */}
@@ -405,13 +499,15 @@ function FilterRow({
               <TrashIcon />
             </button>
 
-            {/* Drag handle — 2rem */}
-            <div
-              className="flex flex-none cursor-grab items-center justify-center text-[rgb(196,201,209)]"
-              style={{ width: "2rem", height: "auto" }}
+            {/* More options */}
+            <button
+              type="button"
+              className="flex flex-none items-center justify-center text-[rgb(97,102,112)] hover:bg-[rgb(246,248,250)] focus:outline-none"
+              style={{ width: 32 }}
+              aria-label="More options"
             >
-              <DragIcon />
-            </div>
+              <EllipsisIcon />
+            </button>
           </div>
         </div>
       </div>
@@ -460,11 +556,13 @@ export function FilterPanel({
   useEffect(() => {
     function handleDown(e: MouseEvent) {
       const target = e.target as Node;
+      const el = target as Element;
       if (
         panelRef.current &&
         !panelRef.current.contains(target) &&
         anchorRef.current &&
-        !anchorRef.current.contains(target)
+        !anchorRef.current.contains(target) &&
+        !el.closest?.("[data-popup]")
       ) {
         onClose();
       }

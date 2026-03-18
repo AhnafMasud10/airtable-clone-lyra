@@ -14,6 +14,7 @@ import {
   TableDetailSchema,
   TableGetByIdInputSchema,
   TableListByBaseInputSchema,
+  TableSeedInputSchema,
   TableSummarySchema,
 } from "~/types/base-table";
 
@@ -24,6 +25,13 @@ const numberRegex = String.raw`^-?[0-9]+(\.[0-9]+)?$`;
 function textFilterSql(filter: z.infer<typeof GridFilterSchema>) {
   if (filter.type !== "text") return null;
   const { fieldId, op, value } = filter;
+
+  // Skip value-based filters when value is blank — don't treat empty as "filter for empty"
+  const valueRequired = ["contains", "not_contains", "equals"].includes(op);
+  if (valueRequired && (value === undefined || String(value).trim() === "")) {
+    return null;
+  }
+
   if (op === "is_empty") {
     return Prisma.sql`
       NOT EXISTS (
@@ -78,6 +86,12 @@ function textFilterSql(filter: z.infer<typeof GridFilterSchema>) {
 function numberFilterSql(filter: z.infer<typeof GridFilterSchema>) {
   if (filter.type !== "number") return null;
   const { fieldId, op, value } = filter;
+
+  // Skip value-based filters when value is blank
+  const valueRequired = ["eq", "gt", "lt", "gte", "lte"].includes(op);
+  if (valueRequired && (value === undefined || value === null)) {
+    return null;
+  }
 
   if (op === "is_empty") {
     return Prisma.sql`
@@ -289,6 +303,67 @@ export const tableRouter = createTRPCRouter({
             await tx.cell.createMany({ data: cells });
           }
         }
+
+        return createdTable;
+      });
+    }),
+
+  seedTable: protectedProcedure
+    .input(TableSeedInputSchema)
+    .output(TableCreateOutputSchema)
+    .mutation(async ({ ctx, input }) => {
+      await assertBaseOwnership(ctx.db, input.baseId, ctx.session.user.id);
+      return ctx.db.$transaction(async (tx) => {
+        const createdTable = await tx.table.create({
+          data: { name: input.name, baseId: input.baseId },
+        });
+
+        await tx.view.create({
+          data: { tableId: createdTable.id, name: "Grid view", type: "GRID" },
+        });
+
+        const fieldDefs = [
+          { name: "Name", type: "TEXT" as const, order: 0 },
+          { name: "Email", type: "TEXT" as const, order: 1 },
+          { name: "Company", type: "TEXT" as const, order: 2 },
+          { name: "Phone", type: "TEXT" as const, order: 3 },
+          { name: "Revenue", type: "NUMBER" as const, order: 4 },
+          { name: "Status", type: "TEXT" as const, order: 5 },
+          { name: "Date Joined", type: "DATE" as const, order: 6 },
+          { name: "Notes", type: "LONG_TEXT" as const, order: 7 },
+        ];
+
+        const createdFields = await tx.field.createManyAndReturn({
+          data: fieldDefs.map((f) => ({
+            tableId: createdTable.id,
+            name: f.name,
+            type: f.type,
+            order: f.order,
+          })),
+        });
+
+        const fieldMap = new Map(createdFields.map((f) => [f.name, f.id]));
+        const statuses = ["Active", "Inactive", "Pending", "Churned", "Trial"];
+
+        const createdRecords = await tx.record.createManyAndReturn({
+          data: Array.from({ length: 30 }, (_, i) => ({
+            tableId: createdTable.id,
+            order: i,
+          })),
+        });
+
+        const cells = createdRecords.flatMap((record) => [
+          { recordId: record.id, fieldId: fieldMap.get("Name")!, value: faker.person.fullName() },
+          { recordId: record.id, fieldId: fieldMap.get("Email")!, value: faker.internet.email() },
+          { recordId: record.id, fieldId: fieldMap.get("Company")!, value: faker.company.name() },
+          { recordId: record.id, fieldId: fieldMap.get("Phone")!, value: faker.phone.number() },
+          { recordId: record.id, fieldId: fieldMap.get("Revenue")!, value: String(faker.number.int({ min: 1000, max: 500000 })) },
+          { recordId: record.id, fieldId: fieldMap.get("Status")!, value: statuses[Math.floor(Math.random() * statuses.length)]! },
+          { recordId: record.id, fieldId: fieldMap.get("Date Joined")!, value: faker.date.past({ years: 3 }).toISOString().split("T")[0]! },
+          { recordId: record.id, fieldId: fieldMap.get("Notes")!, value: faker.lorem.sentence() },
+        ]);
+
+        await tx.cell.createMany({ data: cells });
 
         return createdTable;
       });

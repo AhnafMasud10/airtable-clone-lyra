@@ -26,9 +26,12 @@ export function CreateBaseButton({ compact = false }: CreateBaseButtonProps) {
         if (!name) return;
         createBase.mutate({ name });
       }}
-      className={`rounded-md bg-[#2a79ef] px-4 py-2 text-sm font-medium text-white shadow-[inset_0_-1px_0_rgba(0,0,0,0.1)] transition hover:bg-[#1f6feb] focus-visible:ring-2 focus-visible:ring-[#2a79ef] focus-visible:outline-none ${compact ? "" : "w-full"}`}
+      className={`flex items-center justify-center gap-1.5 rounded-lg bg-[#166ee1] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1259b8] focus-visible:ring-2 focus-visible:ring-[#2a79ef] focus-visible:outline-none ${compact ? "" : "w-full"}`}
     >
-      {createBase.isPending ? "Creating..." : "+ Create"}
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <path d="M8 3v10M3 8h10" />
+      </svg>
+      {createBase.isPending ? "Creating..." : "Create"}
     </button>
   );
 }

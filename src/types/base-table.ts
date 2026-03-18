@@ -69,6 +69,11 @@ export const TableCreateOutputSchema = z.object({
   baseId: z.string(),
 });
 
+export const TableSeedInputSchema = z.object({
+  baseId: z.string().min(1),
+  name: z.string().min(1).max(100),
+});
+
 export const TableBulkInsertRowsInputSchema = z.object({
   tableId: z.string().min(1),
   count: z.number().int().min(1).max(1000000).default(100000),
@@ -130,6 +135,11 @@ export const FieldUpdateInputSchema = z.object({
 
 export const FieldDeleteInputSchema = z.object({
   fieldId: z.string().min(1),
+});
+
+export const FieldReorderInputSchema = z.object({
+  tableId: z.string().min(1),
+  fieldIds: z.array(z.string().min(1)).min(1),
 });
 
 export const FieldForTableSchema = z.object({

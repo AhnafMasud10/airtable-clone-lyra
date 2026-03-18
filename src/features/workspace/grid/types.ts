@@ -19,4 +19,4 @@ export type TableRowModel = {
   cellsByField: Record<string, string>;
 };
 
-export const PAGE_SIZE = 300;
+export const PAGE_SIZE = 100;

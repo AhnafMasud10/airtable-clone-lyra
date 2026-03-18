@@ -175,7 +175,7 @@ type GridTableProps = Readonly<{
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   isLoading: boolean;
-  isFetching?: boolean;
+  isPlaceholderData: boolean;
   isError: boolean;
   totalCount: number;
   editingCell: { rowId: string; fieldId: string; value: string } | null;
@@ -190,6 +190,8 @@ type GridTableProps = Readonly<{
   onRetry: () => void;
   onAddField: () => void;
   onAddRow: () => void;
+  onReorderFields: (fromIndex: number, toIndex: number) => void;
+  onRowContextMenu?: (e: React.MouseEvent, rowId: string) => void;
 }>;
 
 export function GridTable({
@@ -198,7 +200,7 @@ export function GridTable({
   hasNextPage,
   isFetchingNextPage,
   isLoading,
-  isFetching = false,
+  isPlaceholderData,
   isError,
   totalCount,
   editingCell,
@@ -213,6 +215,8 @@ export function GridTable({
   onRetry,
   onAddField,
   onAddRow,
+  onReorderFields,
+  onRowContextMenu,
 }: GridTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const columnHelper = createColumnHelper<TableRowModel>();
@@ -254,6 +258,105 @@ export function GridTable({
       document.addEventListener("mouseup", onUp);
     },
     [],
+  );
+
+  // ── Column drag-to-reorder state ───────────────────────────────────
+  const [dragCol, setDragCol] = useState<{
+    fieldIndex: number;
+    mouseX: number;
+    grabOffsetX: number; // mouseX minus column's left edge at drag start
+    wrapperTop: number;
+    wrapperHeight: number;
+  } | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const dropTargetRef = useRef<number | null>(null);
+  const dragFieldRef = useRef<number | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  dropTargetRef.current = dropTargetIndex;
+
+  // Column left-edge offsets (relative to header scroll content)
+  const columnLeftOffsets = useMemo(() => {
+    const offsets: number[] = [];
+    let acc = 0;
+    fields.forEach((f, i) => {
+      offsets.push(acc);
+      acc += getColumnWidth(f.id, i);
+    });
+    offsets.push(acc); // right edge of last column
+    return offsets;
+  }, [fields, getColumnWidth]);
+
+  const handleColumnDragMouseDown = useCallback(
+    (e: React.MouseEvent, fieldIndex: number) => {
+      // Don't start drag from the resize handle or buttons
+      if ((e.target as HTMLElement).closest("button")) return;
+      e.preventDefault();
+
+      const headerEl = headerScrollRef.current;
+      const wrapper = wrapperRef.current;
+      if (!headerEl || !wrapper) return;
+
+      const headerRect = headerEl.getBoundingClientRect();
+      const wrapperRect = wrapper.getBoundingClientRect();
+      const scrollLeft = headerEl.scrollLeft;
+      const colLeft = (columnLeftOffsets[fieldIndex] ?? 0) - scrollLeft + headerRect.left;
+      const grabOffsetX = e.clientX - colLeft;
+
+      dragFieldRef.current = fieldIndex;
+      setDragCol({
+        fieldIndex,
+        mouseX: e.clientX,
+        grabOffsetX,
+        wrapperTop: wrapperRect.top,
+        wrapperHeight: wrapperRect.height,
+      });
+
+      document.body.style.cursor = "grabbing";
+      document.body.style.userSelect = "none";
+
+      const onMove = (ev: MouseEvent) => {
+        setDragCol((prev) =>
+          prev ? { ...prev, mouseX: ev.clientX } : null,
+        );
+
+        // Determine drop target from mouse position
+        const hRect = headerEl.getBoundingClientRect();
+        const sLeft = headerEl.scrollLeft;
+        const relativeX = ev.clientX - hRect.left + sLeft;
+
+        let targetIdx = 0;
+        for (let i = 0; i < (columnLeftOffsets.length - 1); i++) {
+          const mid =
+            ((columnLeftOffsets[i] ?? 0) + (columnLeftOffsets[i + 1] ?? 0)) / 2;
+          if (relativeX > mid) targetIdx = i + 1;
+        }
+        targetIdx = Math.max(0, Math.min(targetIdx, fields.length - 1));
+        dropTargetRef.current = targetIdx;
+        setDropTargetIndex(targetIdx);
+      };
+
+      const onUp = () => {
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+
+        const fromIdx = dragFieldRef.current;
+        const toIdx = dropTargetRef.current;
+        setDragCol(null);
+        setDropTargetIndex(null);
+        dragFieldRef.current = null;
+        dropTargetRef.current = null;
+
+        if (fromIdx !== null && toIdx !== null && fromIdx !== toIdx) {
+          onReorderFields(fromIdx, toIdx);
+        }
+      };
+
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    },
+    [columnLeftOffsets, fields.length, onReorderFields],
   );
 
   const columns = useMemo(
@@ -347,12 +450,11 @@ export function GridTable({
   // Full row width (left pane + columns) — used in data rows
   const totalContentWidth = LEFT_PANE_WIDTH + totalColumnsWidth;
 
-  const showBlurOverlay = isFetching && !isFetchingNextPage && rowModels.length > 0;
 
   return (
     <>
       {/* ── Outer wrapper: header + data stacked vertically ── */}
-      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div ref={wrapperRef} className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* ── Header row — lives OUTSIDE the scroll container so it never moves ── */}
         <div
           className="flex shrink-0 border-b border-[#d9dee7] bg-[#f2f4f8]"
@@ -400,12 +502,33 @@ export function GridTable({
             <div className="flex" style={{ minWidth: totalColumnsWidth }}>
               {fields.map((field, i) => {
                 const colWidth = getColumnWidth(field.id, i);
+                const isDragging = dragCol?.fieldIndex === i;
+                const dragFrom = dragCol?.fieldIndex ?? null;
+                const isDropTarget = dropTargetIndex === i && dragFrom !== null && dragFrom !== i;
+                const indicatorSide = dragFrom !== null && dragFrom < i ? "right" : "left";
                 return (
                   <div
                     key={field.id}
+                    onMouseDown={(e) => handleColumnDragMouseDown(e, i)}
                     className="group relative flex shrink-0 items-center gap-[5px] border-r border-[#e6ebf2] px-3 text-xs font-semibold text-[#4f5d70]"
-                    style={{ width: colWidth, height: ROW_HEIGHT }}
+                    style={{
+                      width: colWidth,
+                      height: ROW_HEIGHT,
+                      opacity: isDragging ? 0.35 : 1,
+                      cursor: dragCol ? "grabbing" : "grab",
+                    }}
                   >
+                    {/* Drop indicator — blue line on insertion edge */}
+                    {isDropTarget && (
+                      <div
+                        className="pointer-events-none absolute top-0 bottom-0 z-30"
+                        style={{
+                          [indicatorSide]: 0,
+                          width: 2,
+                          backgroundColor: "#2a79ef",
+                        }}
+                      />
+                    )}
                     <span className="flex shrink-0 items-center text-[#637082]">
                       <FieldTypeIcon type={field.type} />
                     </span>
@@ -435,55 +558,95 @@ export function GridTable({
                 );
               })}
 
-              {/* Add field "+" button */}
-              <button
-                type="button"
-                onClick={onAddField}
-                className="flex shrink-0 items-center justify-center border-r border-[#e6ebf2] text-[#97a0af] hover:bg-[#edf0f5] hover:text-[#4f5d70]"
-                style={{ width: ADD_FIELD_WIDTH, height: ROW_HEIGHT }}
-                title="Add field"
-                aria-label="add a field"
-              >
-                <IconPlus />
-              </button>
+              {/* Add field "+" button — hidden during loading */}
+              {!isLoading && (
+                <button
+                  type="button"
+                  onClick={onAddField}
+                  className="flex shrink-0 items-center justify-center border-r border-[#e6ebf2] text-[#97a0af] hover:bg-[#edf0f5] hover:text-[#4f5d70]"
+                  style={{ width: ADD_FIELD_WIDTH, height: ROW_HEIGHT }}
+                  title="Add field"
+                  aria-label="add a field"
+                >
+                  <IconPlus />
+                </button>
+              )}
             </div>
           </div>
         </div>
 
-        {/* ── Blur overlay (Airtable-style) when switching tables ── */}
-        {showBlurOverlay && (
-          <div
-            className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-sm"
-            aria-hidden="true"
-          >
-            <div className="flex flex-col items-center gap-3">
-              <div
-                className="h-8 w-8 animate-spin rounded-full border-2 border-[#d2d9e3] border-t-[#2a79ef]"
-                aria-label="Loading"
-              />
-              <span className="text-sm text-[#607082]">
-                Loading table...
-              </span>
-            </div>
-          </div>
-        )}
-
         {/* ── Data scroll container (rows only, no header) ── */}
         <div
           ref={parentRef}
-          className="min-h-0 flex-1 overflow-auto bg-white"
+          className="relative min-h-0 flex-1 overflow-auto bg-white"
           style={{ overscrollBehavior: "none" }}
           onScroll={handleDataScroll}
         >
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-12">
+          {/* Drop indicator line spanning the data area */}
+          {dragCol && dropTargetIndex !== null && dropTargetIndex !== dragCol.fieldIndex && (() => {
+            const fromIdx = dragCol.fieldIndex;
+            const indicateRight = fromIdx < dropTargetIndex;
+            const edgeOffset = indicateRight
+              ? (columnLeftOffsets[dropTargetIndex + 1] ?? 0)
+              : (columnLeftOffsets[dropTargetIndex] ?? 0);
+            return (
               <div
-                className="h-8 w-8 animate-spin rounded-full border-2 border-[#d2d9e3] border-t-[#2a79ef]"
-                aria-label="Loading"
+                className="pointer-events-none absolute z-30"
+                style={{
+                  left: LEFT_PANE_WIDTH + edgeOffset,
+                  top: 0,
+                  bottom: 0,
+                  width: 2,
+                  backgroundColor: "#2a79ef",
+                }}
               />
-              <span className="text-sm text-[#607082]">
-                Loading table rows...
-              </span>
+            );
+          })()}
+          {(isLoading || isPlaceholderData) ? (
+            <div
+              className="absolute inset-0 z-20 bg-white"
+              aria-label="Loading table"
+            >
+              {/* Skeleton rows */}
+              {Array.from({ length: 20 }).map((_, rowIdx) => (
+                <div
+                  key={rowIdx}
+                  className="flex border-b border-[#e6ebf2]"
+                  style={{ height: ROW_HEIGHT }}
+                >
+                  {/* Left pane skeleton */}
+                  <div
+                    className="flex shrink-0 items-center justify-center border-r border-[#e6ebf2]"
+                    style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
+                  >
+                    <div
+                      className="animate-pulse rounded bg-[#e8ecf1]"
+                      style={{ width: 16, height: 10 }}
+                    />
+                  </div>
+                  {/* Cell skeletons */}
+                  {(fields.length > 0 ? fields : Array.from({ length: 5 })).map((_, colIdx) => (
+                    <div
+                      key={colIdx}
+                      className="flex shrink-0 items-center border-r border-[#e6ebf2] px-3"
+                      style={{
+                        width: fields.length > 0
+                          ? getColumnWidth(fields[colIdx]?.id ?? '', colIdx)
+                          : colIdx === 0 ? PRIMARY_COL_WIDTH : COL_WIDTH,
+                        height: ROW_HEIGHT,
+                      }}
+                    >
+                      <div
+                        className="animate-pulse rounded bg-[#e8ecf1]"
+                        style={{
+                          width: `${45 + ((rowIdx * 7 + colIdx * 13) % 40)}%`,
+                          height: 12,
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
           ) : null}
           {isError ? (
@@ -541,7 +704,14 @@ export function GridTable({
               return (
                 <div
                   key={row.id}
+                  data-row
                   className="group absolute flex border-b border-[#d2d9e3]"
+                  onContextMenu={(e) => {
+                    if (onRowContextMenu) {
+                      e.preventDefault();
+                      onRowContextMenu(e, row.original.id);
+                    }
+                  }}
                   style={{
                     transform: `translateY(${item.start}px)`,
                     height: ROW_HEIGHT,
@@ -650,6 +820,51 @@ export function GridTable({
             <div className="flex-1" style={{ height: ROW_HEIGHT }} />
           </div>
         </div>
+
+        {/* ── Floating shadow column while dragging ── */}
+        {dragCol && (() => {
+          const dragField = fields[dragCol.fieldIndex];
+          if (!dragField) return null;
+          const colWidth = getColumnWidth(dragField.id, dragCol.fieldIndex);
+          return (
+            <div
+              className="pointer-events-none fixed z-50"
+              style={{
+                left: dragCol.mouseX - dragCol.grabOffsetX,
+                top: dragCol.wrapperTop,
+                width: colWidth,
+                height: dragCol.wrapperHeight,
+              }}
+            >
+              {/* Shadow header */}
+              <div
+                className="flex items-center gap-[5px] border-r border-b border-[#c0cad8] px-3 text-xs font-semibold text-[#4f5d70]"
+                style={{
+                  height: ROW_HEIGHT,
+                  backgroundColor: "rgba(220, 228, 240, 0.92)",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                }}
+              >
+                <span className="flex shrink-0 items-center text-[#637082]">
+                  <FieldTypeIcon type={dragField.type} />
+                </span>
+                <span className="overflow-hidden text-ellipsis whitespace-nowrap">
+                  {dragField.name}
+                </span>
+              </div>
+              {/* Shadow body — translucent column fill */}
+              <div
+                style={{
+                  height: `calc(100% - ${ROW_HEIGHT}px)`,
+                  backgroundColor: "rgba(42, 121, 239, 0.06)",
+                  borderRight: "1px solid rgba(42, 121, 239, 0.18)",
+                  borderLeft: "1px solid rgba(42, 121, 239, 0.18)",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.10)",
+                }}
+              />
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── Summary bar ── */}

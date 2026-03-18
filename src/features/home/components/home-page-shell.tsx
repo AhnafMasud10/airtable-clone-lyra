@@ -4,17 +4,16 @@ import { HomeTopbar } from "./home-topbar";
 
 export function HomePageShell() {
   return (
-    <main className="h-screen overflow-hidden bg-[#f2f3f6] text-[#1f2328]">
-      <div className="flex h-full">
-        <HomeSidebar />
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          <HomeTopbar />
-          <section className="min-h-0 flex-1 overflow-auto px-8 py-7">
-            <div className="mx-auto max-w-[980px]">
+    <main className="h-screen overflow-hidden bg-white text-[#333333]">
+      <div className="flex h-full flex-col">
+        <HomeTopbar />
+        <div className="flex min-h-0 flex-1">
+          <HomeSidebar />
+          <div className="flex min-w-0 flex-1 flex-col overflow-auto bg-[#f8f8f8]">
+            <div className="mx-auto w-full max-w-[1920px] flex-1 px-7 pt-6">
               <HomeContent />
             </div>
-          </section>
+          </div>
         </div>
       </div>
     </main>

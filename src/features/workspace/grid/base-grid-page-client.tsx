@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "~/trpc/react";
 import type {
   GridField,
@@ -16,7 +17,7 @@ import { TableTabs } from "./table-tabs";
 import { ViewsSidebar } from "./views-sidebar";
 import { GridToolbar } from "./grid-toolbar";
 import { GridTable } from "./grid-table";
-import { SelectionActionBar } from "./selection-action-bar";
+import { RowContextMenu } from "./row-context-menu";
 
 type BaseGridPageClientProps = Readonly<{
   baseId: string;
@@ -50,8 +51,28 @@ export function BaseGridPageClient({
     fieldId: string;
     value: string;
   } | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    anchorRowId: string;
+  } | null>(null);
+  const pendingCellUpdatesRef = useRef<
+    Map<string, { fieldId: string; value: string }[]>
+  >(new Map());
+  const upsertCellMutateRef = useRef<
+    ((input: { recordId: string; fieldId: string; value: string | null }) => void) | null
+  >(null);
+  // Guards auto-save from firing during programmatic view/table switches
+  const suppressAutoSaveRef = useRef(false);
+  // Local source-of-truth for view configs (viewId → config)
+  // This avoids stale reads from viewsQuery.data when switching views
+  const viewConfigCacheRef = useRef<
+    Map<string, { globalSearch: string; filters: GridFilter[]; sorts: GridSort[]; hiddenFieldIds: string[] }>
+  >(new Map());
+  const [isViewSwitching, setIsViewSwitching] = useState(false);
 
   useEffect(() => {
     setSelectedTableId(initialTableId ?? initialTables[0]?.id ?? null);
@@ -60,6 +81,16 @@ export function BaseGridPageClient({
   useEffect(() => {
     setSelectedViewId(initialViewId);
   }, [initialViewId]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (target.closest("[data-row]") || target.closest("[data-popup]")) return;
+      setSelectedRowIds((prev) => (prev.size > 0 ? new Set() : prev));
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // ── Queries ──────────────────────────────────────────────────────────
 
@@ -70,7 +101,7 @@ export function BaseGridPageClient({
 
   const viewsQuery = api.view.listByTable.useQuery(
     { tableId: selectedTableId ?? "missing-table" },
-    { enabled: Boolean(selectedTableId) },
+    { enabled: Boolean(selectedTableId), staleTime: 30_000 },
   );
 
   const gridInput = useMemo(
@@ -88,24 +119,73 @@ export function BaseGridPageClient({
     enabled: Boolean(selectedTableId),
     initialCursor: 0,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    placeholderData: (prev) => prev,
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
   });
+
+  // ── Eager prefetch: warm cache for ALL tables on mount ─────────────
+  const prefetchedRef = useRef(false);
+  useEffect(() => {
+    const tables = tablesQuery.data;
+    if (!tables || prefetchedRef.current) return;
+    prefetchedRef.current = true;
+    for (const t of tables) {
+      if (t.id === selectedTableId) continue;
+      void utils.table.getGridWindow.prefetchInfinite({
+        tableId: t.id,
+        limit: PAGE_SIZE,
+        globalSearch: "",
+        filters: [],
+        sorts: [],
+      });
+      void utils.view.listByTable.prefetch({ tableId: t.id });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tablesQuery.data]);
 
   // ── Mutations ────────────────────────────────────────────────────────
 
   const createTable = api.table.createWithDefaults.useMutation({
     onSuccess: async (created) => {
+      suppressAutoSaveRef.current = true;
       await utils.table.listByBase.invalidate({ baseId });
       setSelectedTableId(created.id);
       setSelectedViewId(null);
       setFilters([]);
       setSorts([]);
       setGlobalSearch("");
+      setHiddenFieldIds([]);
+      setShowSearch(false);
       globalThis.history.replaceState(
         null,
         "",
         `/base/${baseId}/table/${created.id}`,
       );
+      requestAnimationFrame(() => {
+        suppressAutoSaveRef.current = false;
+      });
+    },
+  });
+
+  const seedTable = api.table.seedTable.useMutation({
+    onSuccess: async (created) => {
+      suppressAutoSaveRef.current = true;
+      await utils.table.listByBase.invalidate({ baseId });
+      setSelectedTableId(created.id);
+      setSelectedViewId(null);
+      setFilters([]);
+      setSorts([]);
+      setGlobalSearch("");
+      setHiddenFieldIds([]);
+      setShowSearch(false);
+      globalThis.history.replaceState(
+        null,
+        "",
+        `/base/${baseId}/table/${created.id}`,
+      );
+      requestAnimationFrame(() => {
+        suppressAutoSaveRef.current = false;
+      });
     },
   });
 
@@ -116,9 +196,44 @@ export function BaseGridPageClient({
     },
   });
 
+  const reorderFields = api.field.reorder.useMutation({
+    onMutate: async ({ fieldIds }) => {
+      const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
+      void utils.table.getGridWindow.cancel(gridInput);
+
+      // Optimistically reorder fields in the cache
+      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          pages: current.pages.map((page) => {
+            const fieldMap = new Map(page.fields.map((f) => [f.id, f]));
+            const reorderedFields = fieldIds
+              .map((id) => fieldMap.get(id))
+              .filter((f): f is NonNullable<typeof f> => Boolean(f));
+            return { ...page, fields: reorderedFields };
+          }),
+        };
+      });
+
+      return { previousGrid };
+    },
+    onError: (_error, _input, context) => {
+      if (!context?.previousGrid) return;
+      utils.table.getGridWindow.setInfiniteData(gridInput, context.previousGrid);
+    },
+    onSettled: async () => {
+      if (!selectedTableId) return;
+      await utils.table.getGridWindow.invalidate(gridInput);
+    },
+  });
+
   const createView = api.view.create.useMutation({
     onSuccess: async (view) => {
+      suppressAutoSaveRef.current = true;
       setSelectedViewId(view.id);
+      // Apply the new view's config (clean slate)
+      applyViewConfig(view);
       if (!selectedTableId) return;
       await utils.view.listByTable.invalidate({ tableId: selectedTableId });
       globalThis.history.replaceState(
@@ -126,6 +241,9 @@ export function BaseGridPageClient({
         "",
         `/base/${baseId}/table/${selectedTableId}/view/${view.id}`,
       );
+      requestAnimationFrame(() => {
+        suppressAutoSaveRef.current = false;
+      });
     },
   });
 
@@ -193,10 +311,10 @@ export function BaseGridPageClient({
       const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
       void utils.table.getGridWindow.cancel(gridInput);
 
+      const tempId = `optimistic-row-${Date.now()}`;
       utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
         if (!current || current.pages.length === 0) return current;
         const firstPage = current.pages[0]!;
-        const tempId = `optimistic-row-${Date.now()}`;
         const optimisticRow = {
           id: tempId,
           order: input.order ?? 0,
@@ -224,7 +342,57 @@ export function BaseGridPageClient({
         };
       });
 
-      return { previousGrid };
+      return { previousGrid, tempId, order: input.order ?? 0 };
+    },
+    onSuccess: (createdRecord, _input, context) => {
+      if (!context?.tempId) return;
+
+      const pending = pendingCellUpdatesRef.current.get(context.tempId);
+      pendingCellUpdatesRef.current.delete(context.tempId);
+
+      const cellsToPersist = pending ?? [];
+
+      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
+        if (!current || current.pages.length === 0) return current;
+        return {
+          ...current,
+          pages: current.pages.map((page) => {
+            const optimisticRow = page.rows.find((r) => r.id === context.tempId);
+            if (!optimisticRow) return page;
+
+            const mergedCells = optimisticRow.cells.map((c) => {
+              const pendingUpdate = pending?.find((p) => p.fieldId === c.fieldId);
+              const value = pendingUpdate?.value ?? c.value;
+              return {
+                id: `cell-${createdRecord.id}-${c.fieldId}`,
+                recordId: createdRecord.id,
+                fieldId: c.fieldId,
+                value,
+              };
+            });
+
+            const realRow = {
+              ...createdRecord,
+              cells: mergedCells,
+            };
+
+            return {
+              ...page,
+              rows: page.rows.map((r) =>
+                r.id === context.tempId ? realRow : r,
+              ),
+            };
+          }),
+        };
+      });
+
+      for (const { fieldId, value } of cellsToPersist) {
+        upsertCellMutateRef.current?.({
+          recordId: createdRecord.id,
+          fieldId,
+          value: value || null,
+        });
+      }
     },
     onError: (_error, _input, context) => {
       if (!context?.previousGrid) return;
@@ -232,10 +400,14 @@ export function BaseGridPageClient({
         gridInput,
         context.previousGrid,
       );
+      if (context?.tempId) {
+        pendingCellUpdatesRef.current.delete(context.tempId);
+      }
     },
-    onSettled: async () => {
-      if (!selectedTableId) return;
-      await utils.table.getGridWindow.invalidate(gridInput);
+    onSettled: async (_data, error) => {
+      if (error && selectedTableId) {
+        await utils.table.getGridWindow.invalidate(gridInput);
+      }
     },
   });
 
@@ -326,6 +498,16 @@ export function BaseGridPageClient({
     },
   });
 
+  upsertCellMutateRef.current = upsertCell.mutate;
+
+  const duplicateRecord = api.record.duplicate.useMutation({
+    onSuccess: async () => {
+      if (!selectedTableId) return;
+      await utils.table.getGridWindow.invalidate(gridInput);
+      setSelectedRowIds(new Set());
+    },
+  });
+
   const bulkDeleteRecords = api.record.bulkDelete.useMutation({
     onMutate: async (input) => {
       const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
@@ -363,6 +545,94 @@ export function BaseGridPageClient({
     },
   });
 
+  // ── Auto-select first view when views load ──────────────────────────
+
+  useEffect(() => {
+    if (!viewsQuery.data || viewsQuery.data.length === 0) return;
+    // Seed cache from server data for any views not yet locally cached
+    for (const v of viewsQuery.data) {
+      if (!viewConfigCacheRef.current.has(v.id)) {
+        const cfg =
+          v.config && typeof v.config === "object"
+            ? (v.config as {
+                globalSearch?: string;
+                filters?: GridFilter[];
+                sorts?: GridSort[];
+                hiddenFieldIds?: string[];
+              })
+            : {};
+        viewConfigCacheRef.current.set(v.id, {
+          globalSearch: cfg.globalSearch ?? "",
+          filters: cfg.filters ?? [],
+          sorts: cfg.sorts ?? [],
+          hiddenFieldIds: cfg.hiddenFieldIds ?? [],
+        });
+      }
+    }
+    // If no view is selected (or selected view doesn't exist in list), pick the first
+    const viewExists = viewsQuery.data.some((v) => v.id === selectedViewId);
+    if (!viewExists) {
+      const first = viewsQuery.data[0]!;
+      suppressAutoSaveRef.current = true;
+      setSelectedViewId(first.id);
+      // Apply from local cache (just seeded above)
+      const cached = viewConfigCacheRef.current.get(first.id);
+      if (cached) {
+        setGlobalSearch(cached.globalSearch);
+        setFilters(cached.filters);
+        setSorts(cached.sorts);
+        setHiddenFieldIds(cached.hiddenFieldIds);
+        setShowSearch(Boolean(cached.globalSearch));
+      } else {
+        applyViewConfig(first);
+      }
+      if (selectedTableId) {
+        globalThis.history.replaceState(
+          null,
+          "",
+          `/base/${baseId}/table/${selectedTableId}/view/${first.id}`,
+        );
+      }
+      // Allow auto-save after React commits the batched state
+      requestAnimationFrame(() => {
+        suppressAutoSaveRef.current = false;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewsQuery.data]);
+
+  // ── Auto-save view config (debounced, per-view) ────────────────────
+
+  const saveViewConfig = api.view.saveConfig.useMutation();
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!selectedViewId || suppressAutoSaveRef.current) return;
+    // Always keep the local cache in sync with the current config
+    const currentConfig = { globalSearch, filters, sorts, hiddenFieldIds };
+    viewConfigCacheRef.current.set(selectedViewId, currentConfig);
+    // Debounce: save 500ms after the last user-driven change
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      if (suppressAutoSaveRef.current) return;
+      saveViewConfig.mutate({
+        viewId: selectedViewId,
+        config: currentConfig,
+      });
+    }, 500);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedViewId, globalSearch, filters, sorts, hiddenFieldIds]);
+
+  // ── Clear view-switching spinner once fresh data arrives ─────────────
+  useEffect(() => {
+    if (isViewSwitching && !gridQuery.isFetching) {
+      setIsViewSwitching(false);
+    }
+  }, [isViewSwitching, gridQuery.isFetching]);
+
   // ── Derived data ─────────────────────────────────────────────────────
 
   const allFieldsFromGrid: GridField[] = useMemo(
@@ -394,36 +664,66 @@ export function BaseGridPageClient({
     (tablesQuery.data ?? []).find((t) => t.id === selectedTableId)?.name ??
     "Untitled table";
 
+  const selectedViewName =
+    (viewsQuery.data ?? []).find((v) => v.id === selectedViewId)?.name ??
+    "Grid view";
+
   // ── Callbacks ────────────────────────────────────────────────────────
 
   const applyViewConfig = useCallback((view: ViewItem | null) => {
-    if (!view?.config || typeof view.config !== "object") return;
-    const config = view.config as {
-      globalSearch?: string;
-      filters?: GridFilter[];
-      sorts?: GridSort[];
-      hiddenFieldIds?: string[];
-    };
+    const config =
+      view?.config && typeof view.config === "object"
+        ? (view.config as {
+            globalSearch?: string;
+            filters?: GridFilter[];
+            sorts?: GridSort[];
+            hiddenFieldIds?: string[];
+          })
+        : {};
     setGlobalSearch(config.globalSearch ?? "");
     setFilters(config.filters ?? []);
     setSorts(config.sorts ?? []);
     setHiddenFieldIds(config.hiddenFieldIds ?? []);
+    setShowSearch(Boolean(config.globalSearch));
   }, []);
 
   const handleSelectTable = useCallback(
     (tableId: string) => {
+      suppressAutoSaveRef.current = true;
+      viewConfigCacheRef.current.clear();
       setSelectedTableId(tableId);
       setSelectedViewId(null);
       setFilters([]);
       setSorts([]);
       setGlobalSearch("");
+      setHiddenFieldIds([]);
+      setShowSearch(false);
       globalThis.history.replaceState(
         null,
         "",
         `/base/${baseId}/table/${tableId}`,
       );
+      // The auto-select-first-view effect will fire and pick the first view
+      requestAnimationFrame(() => {
+        suppressAutoSaveRef.current = false;
+      });
     },
     [baseId],
+  );
+
+  const handlePrefetchTable = useCallback(
+    (tableId: string) => {
+      if (tableId === selectedTableId) return;
+      void utils.table.getGridWindow.prefetchInfinite({
+        tableId,
+        limit: PAGE_SIZE,
+        globalSearch: "",
+        filters: [],
+        sorts: [],
+      });
+      void utils.view.listByTable.prefetch({ tableId });
+    },
+    [selectedTableId, utils],
   );
 
   const handleAddTable = useCallback(() => {
@@ -438,6 +738,18 @@ export function BaseGridPageClient({
     createTable.mutate({ baseId, name, defaultRowCount: 0 });
   }, [baseId, createTable, tablesQuery.data]);
 
+  const handleSeedTable = useCallback(() => {
+    const tables = tablesQuery.data ?? [];
+    const existingNames = new Set(tables.map((t) => t.name));
+    let name = "Seeded Table 1";
+    let i = 2;
+    while (existingNames.has(name)) {
+      name = `Seeded Table ${i}`;
+      i++;
+    }
+    seedTable.mutate({ baseId, name });
+  }, [baseId, seedTable, tablesQuery.data]);
+
   const handleBulkInsert = useCallback(() => {
     if (!selectedTableId) return;
     bulkInsertRows.mutate({ tableId: selectedTableId, count: 100000 });
@@ -447,21 +759,73 @@ export function BaseGridPageClient({
     if (!selectedTableId) return;
     const name = globalThis.prompt("View name")?.trim();
     if (!name) return;
-    createView.mutate({ tableId: selectedTableId, name, type: "GRID" });
+    // New view starts with a clean config (no filters/sorts/hidden fields)
+    createView.mutate({
+      tableId: selectedTableId,
+      name,
+      type: "GRID",
+      config: { globalSearch: "", filters: [], sorts: [], hiddenFieldIds: [] },
+    });
   }, [selectedTableId, createView]);
 
   const handleSelectView = useCallback(
     (view: ViewItem) => {
       if (!selectedTableId) return;
+      // Flush any pending save for the current view before switching
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+        if (selectedViewId) {
+          const cached = viewConfigCacheRef.current.get(selectedViewId);
+          if (cached) {
+            saveViewConfig.mutate({ viewId: selectedViewId, config: cached });
+          }
+        }
+      }
+      // Suppress auto-save so we don't write old state into the newly selected view
+      suppressAutoSaveRef.current = true;
+      setIsViewSwitching(true);
       setSelectedViewId(view.id);
-      applyViewConfig(view);
+
+      // Read from local cache first, fall back to server data
+      const cached = viewConfigCacheRef.current.get(view.id);
+      if (cached) {
+        setGlobalSearch(cached.globalSearch);
+        setFilters(cached.filters);
+        setSorts(cached.sorts);
+        setHiddenFieldIds(cached.hiddenFieldIds);
+        setShowSearch(Boolean(cached.globalSearch));
+      } else {
+        applyViewConfig(view);
+        // Seed the cache from server data
+        const config =
+          view.config && typeof view.config === "object"
+            ? (view.config as {
+                globalSearch?: string;
+                filters?: GridFilter[];
+                sorts?: GridSort[];
+                hiddenFieldIds?: string[];
+              })
+            : {};
+        viewConfigCacheRef.current.set(view.id, {
+          globalSearch: config.globalSearch ?? "",
+          filters: config.filters ?? [],
+          sorts: config.sorts ?? [],
+          hiddenFieldIds: config.hiddenFieldIds ?? [],
+        });
+      }
+
       globalThis.history.replaceState(
         null,
         "",
         `/base/${baseId}/table/${selectedTableId}/view/${view.id}`,
       );
+      // Re-enable after React commits the batched state
+      requestAnimationFrame(() => {
+        suppressAutoSaveRef.current = false;
+      });
     },
-    [applyViewConfig, baseId, selectedTableId],
+    [applyViewConfig, baseId, selectedTableId, selectedViewId, saveViewConfig],
   );
 
   const handleAddField = useCallback(() => {
@@ -479,10 +843,95 @@ export function BaseGridPageClient({
     });
   }, [selectedTableId, createField, allFieldsFromGrid.length]);
 
+  const handleReorderFields = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      if (!selectedTableId) return;
+      // fromIndex/toIndex are indices into the visible `fields` array
+      const visibleReordered = [...fields];
+      const [moved] = visibleReordered.splice(fromIndex, 1);
+      if (!moved) return;
+      visibleReordered.splice(toIndex, 0, moved);
+
+      // Merge back: visible fields in their new order, hidden fields appended at the end
+      const visibleIds = new Set(visibleReordered.map((f) => f.id));
+      const hiddenFields = allFieldsFromGrid.filter((f) => !visibleIds.has(f.id));
+      const fullReordered = [...visibleReordered, ...hiddenFields];
+
+      reorderFields.mutate({
+        tableId: selectedTableId,
+        fieldIds: fullReordered.map((f) => f.id),
+      });
+    },
+    [selectedTableId, fields, allFieldsFromGrid, reorderFields],
+  );
+
   const handleAddRow = useCallback(() => {
     if (!selectedTableId) return;
     createRecord.mutate({ tableId: selectedTableId, order: rows.length });
   }, [selectedTableId, createRecord, rows.length]);
+
+  const handleRowContextMenu = useCallback(
+    (e: React.MouseEvent, rowId: string) => {
+      setSelectedRowIds((prev) => {
+        const next = new Set(prev);
+        if (!next.has(rowId)) next.add(rowId);
+        return next;
+      });
+      setContextMenu({ x: e.clientX, y: e.clientY, anchorRowId: rowId });
+    },
+    [],
+  );
+
+  const insertAboveRecord = api.record.insertAbove.useMutation({
+    onSuccess: async () => {
+      if (!selectedTableId) return;
+      await utils.table.getGridWindow.invalidate(gridInput);
+      setSelectedRowIds(new Set());
+    },
+  });
+
+  const insertBelowRecord = api.record.insertBelow.useMutation({
+    onSuccess: async () => {
+      if (!selectedTableId) return;
+      await utils.table.getGridWindow.invalidate(gridInput);
+      setSelectedRowIds(new Set());
+    },
+  });
+
+  const handleInsertAbove = useCallback(
+    (recordId: string) => {
+      if (!selectedTableId || recordId.startsWith("optimistic-row-")) return;
+      insertAboveRecord.mutate({ tableId: selectedTableId, recordId });
+      setContextMenu(null);
+    },
+    [selectedTableId, insertAboveRecord],
+  );
+
+  const handleInsertBelow = useCallback(
+    (recordId: string) => {
+      if (!selectedTableId || recordId.startsWith("optimistic-row-")) return;
+      insertBelowRecord.mutate({ tableId: selectedTableId, recordId });
+      setContextMenu(null);
+    },
+    [selectedTableId, insertBelowRecord],
+  );
+
+  const handleDuplicateRecord = useCallback(
+    (recordId: string) => {
+      duplicateRecord.mutate({ recordId });
+      setContextMenu(null);
+    },
+    [duplicateRecord],
+  );
+
+  const handleCopyRecordUrl = useCallback(
+    (recordId: string) => {
+      const url = `${typeof window !== "undefined" ? window.location.origin : ""}/base/${baseId}/record/${recordId}`;
+      void navigator.clipboard.writeText(url);
+      setContextMenu(null);
+    },
+    [baseId],
+  );
 
   const handleStartEdit = useCallback(
     (rowId: string, fieldId: string, value: string) => {
@@ -497,13 +946,59 @@ export function BaseGridPageClient({
 
   const handleCommitEdit = useCallback(() => {
     if (!editingCell) return;
-    upsertCell.mutate({
-      recordId: editingCell.rowId,
-      fieldId: editingCell.fieldId,
-      value: editingCell.value,
-    });
+
+    const isOptimisticRow = editingCell.rowId.startsWith("optimistic-row-");
+    if (isOptimisticRow) {
+      const pending = pendingCellUpdatesRef.current.get(editingCell.rowId) ?? [];
+      if (!pending.some((p) => p.fieldId === editingCell.fieldId)) {
+        pending.push({ fieldId: editingCell.fieldId, value: editingCell.value });
+      } else {
+        const idx = pending.findIndex((p) => p.fieldId === editingCell.fieldId);
+        pending[idx] = { fieldId: editingCell.fieldId, value: editingCell.value };
+      }
+      pendingCellUpdatesRef.current.set(editingCell.rowId, pending);
+
+      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          pages: current.pages.map((page) => ({
+            ...page,
+            rows: page.rows.map((row) => {
+              if (row.id !== editingCell.rowId) return row;
+              const existingIdx = row.cells.findIndex(
+                (c) => c.fieldId === editingCell.fieldId,
+              );
+              const nextCells =
+                existingIdx >= 0
+                  ? row.cells.map((c, i) =>
+                      i === existingIdx
+                        ? { ...c, value: editingCell.value }
+                        : c,
+                    )
+                  : [
+                      ...row.cells,
+                      {
+                        id: `optimistic-${editingCell.rowId}-${editingCell.fieldId}`,
+                        recordId: editingCell.rowId,
+                        fieldId: editingCell.fieldId,
+                        value: editingCell.value,
+                      },
+                    ];
+              return { ...row, cells: nextCells };
+            }),
+          })),
+        };
+      });
+    } else {
+      upsertCell.mutate({
+        recordId: editingCell.rowId,
+        fieldId: editingCell.fieldId,
+        value: editingCell.value,
+      });
+    }
     setEditingCell(null);
-  }, [editingCell, upsertCell]);
+  }, [editingCell, upsertCell, utils, gridInput]);
 
   const handleCancelEdit = useCallback(() => {
     setEditingCell(null);
@@ -658,7 +1153,10 @@ export function BaseGridPageClient({
           tables={tablesQuery.data ?? []}
           selectedTableId={selectedTableId}
           onSelectTable={handleSelectTable}
+          onPrefetchTable={handlePrefetchTable}
           onAddTable={handleAddTable}
+          onSeedTable={handleSeedTable}
+          isSeeding={seedTable.isPending}
           onBulkInsert={handleBulkInsert}
           isBulkInserting={bulkInsertRows.isPending}
         />
@@ -673,6 +1171,7 @@ export function BaseGridPageClient({
             fields={fields}
             fieldsCount={fields.length}
             selectedTableId={selectedTableId}
+            viewName={selectedViewName}
             sidebarCollapsed={sidebarCollapsed}
             onToggleSidebar={() => setSidebarCollapsed((c) => !c)}
             allFields={allFieldsFromGrid}
@@ -682,6 +1181,15 @@ export function BaseGridPageClient({
             onShowAll={handleShowAll}
             filters={filters}
             onFiltersChange={setFilters}
+            sorts={sorts}
+            onSortsChange={setSorts}
+            showSearch={showSearch}
+            onToggleSearch={() => {
+              setShowSearch((v) => {
+                if (v) setGlobalSearch("");
+                return !v;
+              });
+            }}
           />
 
           {/* View sidebar (collapsible) | Grid */}
@@ -696,6 +1204,37 @@ export function BaseGridPageClient({
             />
 
             <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-white">
+              {/* View-switching loading overlay */}
+              {isViewSwitching && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70">
+                  <div className="flex flex-col items-center gap-3">
+                    <svg
+                      className="animate-spin"
+                      width="28"
+                      height="28"
+                      viewBox="0 0 28 28"
+                      fill="none"
+                    >
+                      <circle
+                        cx="14"
+                        cy="14"
+                        r="12"
+                        stroke="rgb(214,218,226)"
+                        strokeWidth="3"
+                      />
+                      <path
+                        d="M14 2a12 12 0 0 1 12 12"
+                        stroke="rgb(22,110,225)"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <span className="text-[13px] text-[rgb(97,102,112)]">
+                      Loading view...
+                    </span>
+                  </div>
+                </div>
+              )}
               {tablesQuery.isError ? (
                 <div className="border-b border-[rgb(220,4,59)]/20 bg-[rgb(255,242,250)] px-4 py-3 text-[13px] text-[rgb(177,15,65)]">
                   Failed to load tables. Refresh and try again.
@@ -714,7 +1253,7 @@ export function BaseGridPageClient({
                 hasNextPage={gridQuery.hasNextPage ?? false}
                 isFetchingNextPage={gridQuery.isFetchingNextPage}
                 isLoading={gridQuery.isLoading}
-                isFetching={gridQuery.isFetching}
+                isPlaceholderData={gridQuery.isPlaceholderData}
                 isError={gridQuery.isError}
                 totalCount={totalCount}
                 editingCell={editingCell}
@@ -728,13 +1267,27 @@ export function BaseGridPageClient({
                 onFetchNextPage={handleFetchNextPage}
                 onRetry={handleRetry}
                 onAddField={handleAddField}
+                onReorderFields={handleReorderFields}
                 onAddRow={handleAddRow}
+                onRowContextMenu={handleRowContextMenu}
               />
-              <SelectionActionBar
-                selectedCount={selectedRowIds.size}
-                onDelete={handleDeleteSelected}
-                isDeleting={bulkDeleteRecords.isPending}
-              />
+              {contextMenu && (
+                <RowContextMenu
+                  x={contextMenu.x}
+                  y={contextMenu.y}
+                  selectedRowIds={Array.from(selectedRowIds)}
+                  anchorRowId={contextMenu.anchorRowId}
+                  onInsertAbove={handleInsertAbove}
+                  onInsertBelow={handleInsertBelow}
+                  onDuplicate={handleDuplicateRecord}
+                  onDelete={() => {
+                    handleDeleteSelected();
+                    setContextMenu(null);
+                  }}
+                  onCopyRecordUrl={handleCopyRecordUrl}
+                  onClose={() => setContextMenu(null)}
+                />
+              )}
             </main>
           </div>
         </div>

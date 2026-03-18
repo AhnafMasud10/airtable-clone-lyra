@@ -16,16 +16,16 @@ export function SidebarNavItem({
   trailing,
   icon,
 }: SidebarNavItemProps) {
-  const className = `flex items-center justify-between rounded-md px-2.5 py-2 text-sm transition ${
+  const className = `flex items-center justify-between rounded-md px-3 py-2 text-[15px] transition ${
     active
-      ? "bg-[#eef3ff] font-medium text-[#1f57d2]"
-      : "text-[#3f4b59] hover:bg-[#f6f7f9]"
+      ? "bg-[#f0f0f0] font-semibold text-[#333]"
+      : "text-[#333] hover:bg-[#f5f5f5]"
   }`;
 
   const content = (
     <>
-      <span className="flex items-center gap-2">
-        <span className="text-[13px] text-[#7d8998]">{icon}</span>
+      <span className="flex items-center gap-2.5">
+        <span className="flex items-center text-[#444]">{icon}</span>
         <span>{label}</span>
       </span>
       {trailing}

@@ -20,9 +20,9 @@ export function groupBasesForHome(bases: HomeBase[]): GroupedBases {
 
 export function getOpenedLabel(index: number, group: "today" | "past7Days") {
   if (group === "today") {
-    if (index === 0) return "Opened 19 minutes ago";
     return "Opened just now";
   }
 
-  return index % 2 === 0 ? "Opened 23 hours ago" : "Opened yesterday";
+  if (index === 0) return "Opened yesterday";
+  return "Opened 7 days ago";
 }

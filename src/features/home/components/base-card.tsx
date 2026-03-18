@@ -9,23 +9,32 @@ type BaseCardProps = Readonly<{
 
 export function BaseCard({ base, openedLabel, accentClass }: BaseCardProps) {
   const href = `/base/${base.id}`;
-  const initial = base.name.charAt(0).toUpperCase() || "B";
+  const initials =
+    base.name.length <= 2
+      ? base.name.charAt(0).toUpperCase() + (base.name.charAt(1) ?? "")
+      : base.name
+          .split(/\s+/)
+          .slice(0, 2)
+          .map((w) => w.charAt(0).toUpperCase())
+          .join("");
 
   return (
     <Link
       href={href}
-      className="flex min-h-[66px] cursor-pointer rounded-lg border border-[#e2e6ed] bg-white p-3 transition hover:border-[#c9d6eb] hover:shadow-[0_1px_2px_rgba(0,0,0,0.04)] focus-visible:ring-2 focus-visible:ring-[#2a79ef] focus-visible:outline-none"
+      className="flex h-[92px] cursor-pointer items-center rounded-xl bg-white shadow-sm transition hover:shadow-md focus-visible:ring-2 focus-visible:ring-[#2a79ef] focus-visible:outline-none"
     >
-      <div
-        className={`mr-3 flex h-10 w-10 items-center justify-center rounded-md text-[28px] leading-none font-semibold text-white ${accentClass}`}
-      >
-        {initial}
+      <div className="flex h-full w-[92px] shrink-0 items-center justify-center rounded-l-xl">
+        <div
+          className={`flex h-[56px] w-[56px] items-center justify-center rounded-lg text-[20px] font-semibold text-white ${accentClass}`}
+        >
+          {initials}
+        </div>
       </div>
-      <div className="min-w-0">
-        <div className="truncate pt-0.5 text-[18px] leading-5 font-medium text-[#1f2328]">
+      <div className="min-w-0 pr-4">
+        <div className="truncate text-[14px] font-semibold text-[#333]">
           {base.name}
         </div>
-        <div className="mt-0.5 text-[12px] text-[#748091]">{openedLabel}</div>
+        <div className="mt-1 text-[12px] text-[#888]">{openedLabel}</div>
       </div>
     </Link>
   );
