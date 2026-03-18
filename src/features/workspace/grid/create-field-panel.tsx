@@ -5,11 +5,13 @@ import { createPortal } from "react-dom";
 
 const FIELD_TYPES = [
   { type: "TEXT" as const, label: "Single line text", icon: "text" },
+  { type: "LONG_TEXT" as const, label: "Long text", icon: "paragraph" },
   { type: "NUMBER" as const, label: "Number", icon: "number" },
 ] as const;
 
 const TEXT_DESCRIPTION =
   "Enter text, or prefill each new cell with a default value.";
+const LONG_TEXT_DESCRIPTION = "Enter multiple lines of text.";
 const NUMBER_DESCRIPTION =
   "Enter a number, or prefill each new cell with a default value.";
 
@@ -45,6 +47,30 @@ function IconTextAlt() {
   );
 }
 
+function IconParagraph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" aria-hidden="true">
+      <path d="M2 4a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 4Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 7Zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 10Zm0 3a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6A.5.5 0 0 1 2 13Z" />
+    </svg>
+  );
+}
+
+function IconPlus() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" aria-hidden="true">
+      <path d="M8 3a.5.5 0 0 1 .5.5v4h4a.5.5 0 0 1 0 1h-4v4a.5.5 0 0 1-1 0v-4h-4a.5.5 0 0 1 0-1h4v-4A.5.5 0 0 1 8 3Z" />
+    </svg>
+  );
+}
+
+function IconInfo() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" aria-hidden="true">
+      <path d="M8 1.5a6.5 6.5 0 1 0 0 13A6.5 6.5 0 0 0 8 1.5ZM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-2.75a1 1 0 0 0-.956.703.75.75 0 1 1-1.432-.452 2.5 2.5 0 1 1 3.127 3.153.75.75 0 0 1-.739.596.75.75 0 0 1-.75-.75V8a.75.75 0 0 1 .75-.75 1 1 0 1 0 0-2ZM7.25 11a.75.75 0 1 1 1.5 0 .75.75 0 0 1-1.5 0Z" />
+    </svg>
+  );
+}
+
 function IconHash() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" aria-hidden="true">
@@ -53,8 +79,10 @@ function IconHash() {
   );
 }
 
-function FieldTypeIcon({ icon }: Readonly<{ icon: "text" | "number" }>) {
-  return icon === "text" ? <IconTextAlt /> : <IconHash />;
+function FieldTypeIcon({ icon }: Readonly<{ icon: "text" | "paragraph" | "number" }>) {
+  if (icon === "text") return <IconTextAlt />;
+  if (icon === "paragraph") return <IconParagraph />;
+  return <IconHash />;
 }
 
 type FieldConfigOptions = {
@@ -69,7 +97,7 @@ type FieldConfigOptions = {
 type CreateFieldPanelProps = Readonly<{
   onSelect: (
     name: string,
-    type: "TEXT" | "NUMBER",
+    type: "TEXT" | "LONG_TEXT" | "NUMBER",
     options?: FieldConfigOptions,
   ) => void;
   onClose: () => void;
@@ -89,6 +117,7 @@ export function CreateFieldPanel({
   const [defaultValue, setDefaultValue] = useState("");
   const [showDescription, setShowDescription] = useState(false);
   const [description, setDescription] = useState("");
+  const [enableRichText, setEnableRichText] = useState(false);
   // Number formatting
   const [decimalPlaces, setDecimalPlaces] = useState(1);
   const [showThousandsSeparator, setShowThousandsSeparator] = useState(true);
@@ -126,8 +155,15 @@ export function CreateFieldPanel({
 
   const handleSelectType = (field: (typeof FIELD_TYPES)[number]) => {
     setSelectedType(field);
-    setFieldName(field.type === "TEXT" ? "Text" : "Number");
+    setFieldName(
+      field.type === "TEXT"
+        ? "Text"
+        : field.type === "LONG_TEXT"
+          ? "Long text"
+          : "Number",
+    );
     setDefaultValue("");
+    setEnableRichText(false);
     setDecimalPlaces(1);
     setShowThousandsSeparator(true);
     setSeparatorPreset("local");
@@ -147,6 +183,9 @@ export function CreateFieldPanel({
       options.decimalSeparator =
         separatorPreset === "local" ? "." : separatorPreset === "european" ? "," : ".";
       options.largeNumberAbbrev = largeNumberAbbrev;
+    }
+    if (selectedType.type === "LONG_TEXT" && enableRichText) {
+      (options as Record<string, unknown>).richText = true;
     }
     onSelect(
       name,
@@ -174,6 +213,7 @@ export function CreateFieldPanel({
         position: "fixed",
         top: Math.min(pos.top, window.innerHeight - 300),
         left: Math.min(pos.left, window.innerWidth - 420),
+        width: 400,
         minWidth: 400,
         maxWidth: 900,
         maxHeight: "min(500px, calc(100vh - 100px))",
@@ -186,59 +226,131 @@ export function CreateFieldPanel({
       <div className="flex flex-col" style={{ maxHeight: "min(500px, calc(100vh - 100px))" }}>
         {selectedType ? (
           /* ── Config step ── */
-          <div className="flex flex-1 flex-col overflow-auto p-4">
-            {/* Field name */}
-            <input
-              type="text"
-              value={fieldName}
-              onChange={(e) => setFieldName(e.target.value)}
-              placeholder="Field name (optional)"
-              className="w-full rounded-lg border bg-[#f7f8fa] px-3 py-2.5 text-[13px] text-[#1d1f25] placeholder-[#969ba5] outline-none focus:border-[#2a79ef] focus:ring-1 focus:ring-[#2a79ef]"
-              style={{ borderColor: "#e0e5ed" }}
-              autoFocus
-            />
-
-            {/* Selected type badge */}
-            <div
-              className="mt-3 flex items-center gap-2 rounded-lg border bg-[#f7f8fa] px-3 py-2"
-              style={{ borderColor: "#e0e5ed" }}
-            >
-              <span className="text-[#616670]">
-                <FieldTypeIcon icon={selectedType.icon} />
-              </span>
-              <span className="flex-1 text-[13px] font-medium text-[#1d1f25]">
-                {selectedType.label}
-              </span>
-              <IconChevronDown />
+          <div className="flex flex-1 flex-col overflow-auto">
+            {/* Field name — Airtable-style px2 py1 */}
+            <div className="px-4 pt-4 pb-1">
+              <div className="flex w-full items-center">
+                <input
+                  type="text"
+                  value={fieldName}
+                  onChange={(e) => setFieldName(e.target.value)}
+                  placeholder="Field name (optional)"
+                  className="w-full rounded-lg border bg-white px-3 py-2.5 text-[13px] text-[#1d1f25] placeholder-[#969ba5] outline-none focus:border-[#2a79ef] focus:ring-1 focus:ring-[#2a79ef]"
+                  style={{ borderColor: "#e0e5ed" }}
+                  autoFocus
+                  aria-label="Field name (optional)"
+                />
+              </div>
             </div>
 
-            {/* Description */}
-            <p className="mt-2 text-[13px] text-[#616670]">
+            {/* Field type selector — Airtable dropdown button style */}
+            <div className="flex px-4" style={{ height: 32 }}>
+              <button
+                type="button"
+                onClick={handleBack}
+                className="flex flex-1 items-center gap-2 overflow-hidden rounded-lg border bg-white px-3 py-2 text-left shadow-sm outline-none transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#2a79ef] focus:ring-offset-0"
+                style={{ borderColor: "#e0e5ed" }}
+              >
+                <span className="flex-none text-[#616670]">
+                  <FieldTypeIcon icon={selectedType.icon} />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#1d1f25]">
+                  {selectedType.label}
+                </span>
+                <a
+                  href="https://support.airtable.com/docs/supported-field-types-in-airtable-overview"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex shrink-0 items-center text-[#97a0af] hover:text-[#616670]"
+                  aria-label="Field types help"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <IconQuestion />
+                </a>
+                <span className="flex-none text-[#97a0af]">
+                  <IconChevronDown />
+                </span>
+              </button>
+            </div>
+
+            {/* Description — muted text */}
+            <p className="mt-2 px-4 text-[13px] text-[#616670]">
               {selectedType.type === "TEXT"
                 ? TEXT_DESCRIPTION
-                : NUMBER_DESCRIPTION}
+                : selectedType.type === "LONG_TEXT"
+                  ? LONG_TEXT_DESCRIPTION
+                  : NUMBER_DESCRIPTION}
             </p>
 
-            {/* Default value */}
-            <p className="mt-4 text-[13px] font-medium text-[#1d1f25]">
-              Default
-            </p>
-            <input
-              type={selectedType.type === "NUMBER" ? "number" : "text"}
-              value={defaultValue}
-              onChange={(e) => setDefaultValue(e.target.value)}
-              placeholder={
-                selectedType.type === "TEXT"
-                  ? "Enter default value (optional)"
-                  : "Enter default number (optional)"
-              }
-              className="mt-1 w-full rounded-lg border bg-[#f7f8fa] px-3 py-2.5 text-[13px] text-[#1d1f25] placeholder-[#969ba5] outline-none focus:border-[#2a79ef] focus:ring-1 focus:ring-[#2a79ef]"
-              style={{ borderColor: "#e0e5ed" }}
-            />
+            {/* LONG_TEXT: Formatting section */}
+            {selectedType.type === "LONG_TEXT" && (
+              <div className="px-4 py-2">
+                <h2 className="mb-2 text-[13px] font-semibold text-[#1d1f25]">
+                  Formatting
+                </h2>
+                <div className="flex items-center gap-2 py-1">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={enableRichText}
+                    onClick={() => setEnableRichText((v) => !v)}
+                    className="relative flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
+                    style={{
+                      backgroundColor: enableRichText ? "#2a79ef" : "#c4c9d1",
+                      padding: 2,
+                    }}
+                  >
+                    <span
+                      className="block h-4 w-4 rounded-full bg-white shadow-sm transition-transform"
+                      style={{
+                        transform: enableRichText
+                          ? "translateX(16px)"
+                          : "translateX(0)",
+                      }}
+                    />
+                  </button>
+                  <span className="flex-1 truncate text-[13px] text-[#1d1f25]">
+                    Enable rich text formatting
+                  </span>
+                  <a
+                    href="https://support.airtable.com/docs/using-rich-text-with-airtable"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center text-[#97a0af] hover:text-[#616670]"
+                    aria-label="Rich text formatting help"
+                  >
+                    <IconQuestion />
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* TEXT/NUMBER: Default value (not for LONG_TEXT in Airtable style) */}
+            {(selectedType.type === "TEXT" || selectedType.type === "NUMBER") && (
+              <>
+                <p className="mt-4 px-4 text-[13px] font-medium text-[#1d1f25]">
+                  Default
+                </p>
+                <div className="px-4">
+                  <input
+                    type={selectedType.type === "NUMBER" ? "number" : "text"}
+                    value={defaultValue}
+                    onChange={(e) => setDefaultValue(e.target.value)}
+                    placeholder={
+                      selectedType.type === "TEXT"
+                        ? "Enter default value (optional)"
+                        : "Enter default number (optional)"
+                    }
+                    className="mt-1 w-full rounded-lg border bg-white px-3 py-2.5 text-[13px] text-[#1d1f25] placeholder-[#969ba5] outline-none focus:border-[#2a79ef] focus:ring-1 focus:ring-[#2a79ef]"
+                    style={{ borderColor: "#e0e5ed" }}
+                  />
+                </div>
+              </>
+            )}
 
             {/* Number formatting */}
             {selectedType.type === "NUMBER" && (
-              <div className="mt-4">
+              <div className="mt-4 px-4">
                 <p className="text-[13px] font-medium text-[#1d1f25]">
                   Formatting
                 </p>
@@ -337,49 +449,48 @@ export function CreateFieldPanel({
               </div>
             )}
 
-            {/* Add description */}
-            <button
-              type="button"
-              onClick={() => setShowDescription((v) => !v)}
-              className="mt-4 flex items-center gap-1 text-[13px] text-[#2a79ef] hover:underline"
-            >
-              <span className="text-[#2a79ef]">+</span>
-              {showDescription ? "Remove description" : "Add description"}
-            </button>
             {showDescription && (
-              <input
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Field description"
-                className="mt-2 w-full rounded-lg border bg-[#f7f8fa] px-3 py-2 text-[13px] outline-none focus:border-[#2a79ef]"
-                style={{ borderColor: "#e0e5ed" }}
-              />
+              <div className="px-4 pb-2">
+                <input
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Field description"
+                  className="w-full rounded-lg border bg-white px-3 py-2 text-[13px] outline-none focus:border-[#2a79ef] focus:ring-1 focus:ring-[#2a79ef]"
+                  style={{ borderColor: "#e0e5ed" }}
+                />
+              </div>
             )}
 
-            {/* Actions */}
-            <div className="mt-6 flex items-center justify-end gap-2">
+            {/* Action bar — Airtable style: Add description left, Cancel/Create right */}
+            <div className="flex shrink-0 items-center justify-between px-4 pt-4 pb-2">
               <button
                 type="button"
-                onClick={handleBack}
-                className="text-[13px] text-[#616670] hover:text-[#1d1f25]"
+                onClick={() => setShowDescription((v) => !v)}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] text-[#1d1f25] hover:bg-[#f7f8fa]"
+                aria-label="Add description"
               >
-                Back
+                <IconPlus />
+                <span>
+                  {showDescription ? "Remove description" : "Add description"}
+                </span>
               </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded px-3 py-1.5 text-[13px] text-[#616670] hover:bg-[#f7f8fa]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleCreate}
-                className="rounded bg-[#2a79ef] px-3 py-1.5 text-[13px] font-medium text-white hover:bg-[#2360c4]"
-              >
-                Create
-              </button>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-lg px-3 py-2 text-[13px] text-[#1d1f25] hover:bg-[#f7f8fa]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  className="rounded-lg bg-[#2a79ef] px-3 py-2 text-[13px] font-semibold text-white shadow-sm hover:bg-[#2360c4]"
+                >
+                  Create
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -479,49 +590,38 @@ export function CreateFieldPanel({
           </div>
         )}
 
-        {/* Bottom footer - Automate */}
+        {/* Bottom footer — Airtable style: Automate with agent */}
         <div
-          className="flex shrink-0 items-center justify-between border-t px-4 py-3"
+          className="m-2 flex shrink-0 items-center justify-between rounded-lg px-4 py-3"
           style={{
-            borderColor: "#e0e5ed",
-            backgroundColor: "#f7f8fa",
+            backgroundColor: "#f0f2f5",
           }}
         >
           <div className="flex items-center gap-2">
             <span
-              className="flex h-6 w-6 items-center justify-center rounded"
-              style={{ backgroundColor: "rgba(34, 197, 94, 0.2)" }}
+              className="flex h-5 w-5 items-center justify-center rounded"
+              style={{ color: "#407c4a" }}
+              aria-hidden
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 16 16"
-                fill="none"
-                className="text-[#16a34a]"
-              >
-                <circle cx="8" cy="4" r="1.5" fill="currentColor" />
-                <circle cx="4" cy="8" r="1.5" fill="currentColor" />
-                <circle cx="12" cy="8" r="1.5" fill="currentColor" />
-                <circle cx="8" cy="12" r="1.5" fill="currentColor" />
+              <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 2a3 3 0 0 0-3 3v1a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V5a3 3 0 0 0-3-3Zm2 4a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5a2 2 0 1 1 4 0v1ZM4 9a1 1 0 0 0-1 1v3a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-3a1 1 0 0 0-1-1H4Zm1.5 2a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5Z" />
               </svg>
             </span>
-            <span className="text-[13px] text-[#616670]">
+            <span className="text-[13px] text-[#1d1f25]">
               Automate this field with an agent
             </span>
             <button
               type="button"
-              aria-label="Learn more"
-              className="text-[#97a0af] hover:text-[#616670]"
+              aria-label="Learn more about field agents"
+              className="flex items-center text-[#97a0af] hover:text-[#616670]"
             >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 1.5a6.5 6.5 0 1 0 0 13A6.5 6.5 0 0 0 8 1.5ZM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-2.75a1 1 0 0 0-.956.703.75.75 0 1 1-1.432-.452 2.5 2.5 0 1 1 3.127 3.153.75.75 0 0 1-.739.596.75.75 0 0 1-.75-.75V8a.75.75 0 0 1 .75-.75 1 1 0 1 0 0-2ZM7.25 11a.75.75 0 1 1 1.5 0 .75.75 0 0 1-1.5 0Z" />
-              </svg>
+              <IconInfo />
             </button>
           </div>
           <button
             type="button"
-            className="rounded-lg border px-3 py-1.5 text-[13px] text-[#616670] hover:bg-white"
-            style={{ borderColor: "#e0e5ed", backgroundColor: "#edf0f5" }}
+            className="rounded-lg border border-[#e0e5ed] bg-white px-3 py-1.5 text-[13px] text-[#1d1f25] shadow-sm hover:bg-[#f7f8fa]"
+            aria-label="Convert to Field Agent"
           >
             Convert
           </button>

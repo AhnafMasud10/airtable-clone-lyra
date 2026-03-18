@@ -870,7 +870,7 @@ export function BaseGridPageClient({
   const handleCreateField = useCallback(
     (
       name: string,
-      type: "TEXT" | "NUMBER",
+      type: "TEXT" | "LONG_TEXT" | "NUMBER",
       options?: Record<string, unknown>,
     ) => {
       if (!selectedTableId) return;

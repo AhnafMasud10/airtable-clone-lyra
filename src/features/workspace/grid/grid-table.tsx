@@ -105,15 +105,40 @@ function IconCheckBold() {
   );
 }
 
-function FieldTypeIcon({ type }: Readonly<{ type: string }>) {
+function getFieldTypeLabel(type: string): string {
+  switch (type) {
+    case "NUMBER":
+      return "Number";
+    case "LONG_TEXT":
+      return "Long text";
+    case "USER":
+    case "COLLABORATOR":
+      return "User";
+    case "SELECT":
+    case "SINGLE_SELECT":
+      return "Single select";
+    case "ATTACHMENT":
+    case "MULTIPLE_ATTACHMENT":
+      return "Attachment";
+    case "DATE":
+      return "Date";
+    case "AI_TEXT":
+      return "Long text (agent)";
+    default:
+      return "Single line text";
+  }
+}
+
+function FieldTypeIcon({ type, title }: Readonly<{ type: string; title?: string }>) {
   const props = {
     width: 16,
     height: 16,
     viewBox: "0 0 16 16",
     fill: "currentColor",
-    className: "flex-none",
+    className: "flex-none primaryDisplayTypeIcon",
     style: { shapeRendering: "geometricPrecision" as const },
   };
+  const icon = (() => {
   switch (type) {
     case "NUMBER":
       return (
@@ -168,6 +193,13 @@ function FieldTypeIcon({ type }: Readonly<{ type: string }>) {
         </svg>
       );
   }
+  })();
+  const label = title ?? getFieldTypeLabel(type);
+  return (
+    <div className="relative flex shrink-0" title={label} aria-hidden>
+      {icon}
+    </div>
+  );
 }
 
 type GridTableProps = Readonly<{
@@ -191,7 +223,7 @@ type GridTableProps = Readonly<{
   onRetry: () => void;
   onCreateField: (
     name: string,
-    type: "TEXT" | "NUMBER",
+    type: "TEXT" | "LONG_TEXT" | "NUMBER",
     options?: Record<string, unknown>,
   ) => void;
   onAddRow: () => void;
@@ -468,22 +500,26 @@ export function GridTable({
     fields.reduce((acc, f, i) => acc + getColumnWidth(f.id, i), 0) +
     ADD_FIELD_WIDTH;
 
-  // Full row width (left pane + columns) — used in data rows
+  // Full scroll content width (left pane + columns + add button)
   const totalContentWidth = LEFT_PANE_WIDTH + totalColumnsWidth;
+
+  // Grid rows width — where horizontal lines stop (left pane + field columns only, no + button)
+  const gridRowsWidth =
+    LEFT_PANE_WIDTH + fields.reduce((acc, f, i) => acc + getColumnWidth(f.id, i), 0);
 
 
   return (
     <>
       {/* ── Outer wrapper: header + data stacked vertically ── */}
       <div ref={wrapperRef} className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        {/* ── Header row — lives OUTSIDE the scroll container so it never moves ── */}
+        {/* ── Header row — Airtable-style headerAndDataRowContainer ── */}
         <div
-          className="flex shrink-0 border-b border-[#d9dee7] bg-[#f2f4f8]"
+          className="relative z-10 flex shrink-0 bg-white"
           style={{ height: ROW_HEIGHT }}
         >
-          {/* Frozen left pane — always visible, not part of the scrolling header */}
+          {/* Frozen left pane — headerLeftPane with checkbox */}
           <div
-            className="flex shrink-0 items-center justify-center border-r border-b border-[#d2d9e3] bg-[#f2f4f8]"
+            className="flex shrink-0 items-center justify-center border-r border-[#e6ebf2] bg-white"
             style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
           >
             {(() => {
@@ -514,10 +550,10 @@ export function GridTable({
             })()}
           </div>
 
-          {/* Column headers — overflow hidden, scrollLeft driven by data scroll */}
+          {/* Column headers — headerRightPane, scrollLeft driven by data scroll */}
           <div
             ref={headerScrollRef}
-            className="flex-1 overflow-hidden"
+            className="flex-1 overflow-hidden bg-white"
             style={{ height: ROW_HEIGHT }}
           >
             <div className="flex" style={{ minWidth: totalColumnsWidth }}>
@@ -528,11 +564,17 @@ export function GridTable({
                 const isDropTarget = dropTargetIndex === i && dragFrom !== null && dragFrom !== i;
                 const indicatorSide = dragFrom !== null && dragFrom < i ? "right" : "left";
                 const isFieldFiltered = filteredFieldIds?.has(field.id);
+                const fieldTypeLabel = getFieldTypeLabel(field.type);
+                const isPrimary = i === 0;
                 return (
                   <div
                     key={field.id}
+                    data-columnid={field.id}
+                    data-columnindex={i}
+                    data-tutorial-selector-id="gridHeaderCell"
+                    data-primary={isPrimary ? "true" : undefined}
                     onMouseDown={(e) => handleColumnDragMouseDown(e, i)}
-                    className="group relative flex shrink-0 items-center gap-[5px] border-r border-[#e6ebf2] px-3 text-xs font-semibold text-[#4f5d70]"
+                    className="group relative flex shrink-0 items-center border-r border-[#e6ebf2] text-[#4f5d70]"
                     style={{
                       width: colWidth,
                       height: ROW_HEIGHT,
@@ -552,36 +594,55 @@ export function GridTable({
                         }}
                       />
                     )}
-                    <span className="flex shrink-0 items-center text-[#637082]">
-                      <FieldTypeIcon type={field.type} />
-                    </span>
-                    <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
-                      {field.name}
-                    </span>
-                    <button
-                      type="button"
-                      className="invisible flex shrink-0 items-center justify-center rounded text-[#97a0af] group-hover:visible hover:bg-[#e0e5ed]"
-                      style={{ width: 20, height: 20 }}
-                      aria-label={`Open ${field.name} column menu`}
-                    >
-                      <IconChevronDown />
-                    </button>
+                    {/* contentWrapper — Airtable-style structure */}
+                    <div className="flex min-w-0 flex-1 items-center gap-2 px-3">
+                      <div
+                        className="flex min-w-0 flex-1 items-center gap-2"
+                        aria-label={`${field.name} column header (${fieldTypeLabel} field)`}
+                      >
+                        <FieldTypeIcon type={field.type} />
+                        <span
+                          className="min-w-0 flex-1 overflow-hidden text-ellipsis text-[13px] font-semibold leading-4"
+                          style={{
+                            display: "-webkit-box",
+                            WebkitLineClamp: 1,
+                            WebkitBoxOrient: "vertical" as const,
+                            textOverflow: "ellipsis",
+                          }}
+                          title={field.name}
+                        >
+                          {field.name}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="flex shrink-0 items-center justify-center rounded p-0.5 text-[#97a0af] hover:bg-[#e0e5ed] hover:text-[#4f5d70]"
+                        style={{ width: 20, height: 20 }}
+                        aria-label={`Open ${field.name} column menu`}
+                        data-tutorial-selector-id="openColumnMenuButton"
+                      >
+                        <IconChevronDown />
+                      </button>
+                    </div>
+                    {/* Resize handle — right edge */}
                     <button
                       type="button"
                       aria-label={`Resize ${field.name} column`}
-                      className="absolute top-0 right-0 z-20 h-full w-[6px] cursor-col-resize border-0 bg-transparent p-0 opacity-0 group-hover:opacity-30 hover:bg-[#2a79ef] hover:opacity-100"
-                      style={{ marginRight: -3 }}
+                      className="absolute top-0 right-0 z-20 h-full w-1.5 cursor-col-resize border-0 bg-transparent p-0 opacity-0 transition-opacity group-hover:opacity-100"
+                      style={{ marginRight: -2 }}
                       onMouseDown={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         handleResizeStart(field.id, e.clientX, colWidth);
                       }}
-                    />
+                    >
+                      <span className="absolute right-0 top-0 h-full w-px bg-transparent group-hover:bg-[#2a79ef]" />
+                    </button>
                   </div>
                 );
               })}
 
-              {/* Add field "+" button — hidden during loading */}
+              {/* Add field "+" button — ghost cell style like Airtable */}
               {!isLoading && (
                 <button
                   ref={addButtonRef}
@@ -591,6 +652,7 @@ export function GridTable({
                   style={{ width: ADD_FIELD_WIDTH, height: ROW_HEIGHT }}
                   title="Add field"
                   aria-label="add a field"
+                  data-tutorial-selector-id="gridHeaderAddFieldButton"
                 >
                   <IconPlus />
                 </button>
@@ -598,6 +660,13 @@ export function GridTable({
             </div>
           </div>
         </div>
+
+        {/* ── Fixed bottom border under header ── */}
+        <div
+          className="shrink-0"
+          style={{ height: 1, backgroundColor: "#d2d9e3" }}
+          aria-hidden
+        />
 
         {/* ── Data scroll container (rows only, no header) ── */}
         <div
@@ -691,7 +760,7 @@ export function GridTable({
             style={{
               height: rowVirtualizer.getTotalSize(),
               position: "relative",
-              width: "100%",
+              width: totalContentWidth,
               minWidth: totalContentWidth,
               willChange: "transform",
             }}
@@ -708,8 +777,7 @@ export function GridTable({
                     style={{
                       transform: `translateY(${item.start}px)`,
                       height: ROW_HEIGHT,
-                      width: "100%",
-                      minWidth: totalContentWidth,
+                      width: gridRowsWidth,
                     }}
                   >
                     <div
@@ -757,8 +825,7 @@ export function GridTable({
                   style={{
                     transform: `translateY(${item.start}px)`,
                     height: ROW_HEIGHT,
-                    width: "100%",
-                    minWidth: totalContentWidth,
+                    width: gridRowsWidth,
                     backgroundColor: isSelected ? "#ebf3ff" : "white",
                   }}
                 >
@@ -845,8 +912,7 @@ export function GridTable({
           <div
             className="flex border-b border-[#d2d9e3] bg-white"
             style={{
-              width: "100%",
-              minWidth: totalContentWidth,
+              width: gridRowsWidth,
               height: ROW_HEIGHT,
             }}
           >
@@ -860,7 +926,10 @@ export function GridTable({
             >
               <IconPlus />
             </button>
-            <div className="flex-1" style={{ height: ROW_HEIGHT }} />
+            <div
+              className="flex-1 border-r border-[#d2d9e3]"
+              style={{ height: ROW_HEIGHT }}
+            />
           </div>
         </div>
 
