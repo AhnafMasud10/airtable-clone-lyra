@@ -20,7 +20,7 @@ function SectionGroup({
 }: Readonly<{
   title: string;
   bases: HomeBase[];
-  group: "today" | "past7Days";
+  group: "today" | "past7Days" | "past30Days";
   offset?: number;
 }>) {
   if (bases.length === 0) return null;
@@ -55,6 +55,12 @@ export function BasesSection({ bases }: BasesSectionProps) {
         bases={grouped.past7Days}
         group="past7Days"
         offset={grouped.today.length}
+      />
+      <SectionGroup
+        title="Past 30 days"
+        bases={grouped.past30Days}
+        group="past30Days"
+        offset={grouped.today.length + grouped.past7Days.length}
       />
     </div>
   );

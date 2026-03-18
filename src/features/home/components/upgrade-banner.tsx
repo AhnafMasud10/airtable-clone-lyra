@@ -14,7 +14,7 @@ export function UpgradeBanner() {
       <div className="relative z-[1]">
         <h2 className="text-[17px] font-semibold text-[#333]">
           Upgrade to the Team plan before your trial expires in{" "}
-          <span className="text-[#2563eb]">7 days</span>
+          <span className="text-[#2563eb]">6 days</span>
         </h2>
         <p className="mt-1 text-[14px] text-[#666]">
           Keep the power you need to manage complex workflows, design

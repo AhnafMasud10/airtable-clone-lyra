@@ -28,7 +28,7 @@ export async function HomeTopbar() {
             <Link
               href="/"
               aria-label="Airtable home"
-              className="flex items-center rounded p-1.5 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
+              className="flex items-center rounded-lg border border-[#e5e5e5] p-1.5 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
             >
               <svg
                 width="102"
@@ -95,9 +95,9 @@ export async function HomeTopbar() {
             {/* Help button */}
             <button
               type="button"
-              className="flex cursor-pointer items-center justify-center rounded-full text-[#666] hover:text-[#333] focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
+              className="flex cursor-pointer items-center gap-1 rounded-full text-[#666] hover:text-[#333] focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
               aria-label="Help menu"
-              style={{ height: 28, width: 28 }}
+              style={{ height: 28 }}
             >
               <svg
                 width="16"
@@ -108,6 +108,7 @@ export async function HomeTopbar() {
               >
                 <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 11.5h1.5v-1.5h-1.5v1.5zm.75-9a2.5 2.5 0 0 0-2.5 2.5h1.5a1 1 0 1 1 2 0c0 .55-.45 1-1 1a.75.75 0 0 0-.75.75V9h1.5v-.33A2.5 2.5 0 0 0 8 3.5z" />
               </svg>
+              <span className="text-sm">Help</span>
             </button>
 
             {/* Notifications bell */}
