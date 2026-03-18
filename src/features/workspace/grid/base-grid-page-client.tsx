@@ -648,6 +648,15 @@ export function BaseGridPageClient({
   );
   const totalCount = gridQuery.data?.pages[0]?.total ?? 0;
 
+  // Set of field IDs that have an active (complete) filter applied
+  const filteredFieldIds = useMemo(() => {
+    const isComplete = (f: GridFilter) =>
+      f.op === "is_empty" ||
+      f.op === "is_not_empty" ||
+      (f.value !== undefined && String(f.value) !== "");
+    return new Set(filters.filter(isComplete).map((f) => f.fieldId));
+  }, [filters]);
+
   const rowModels: TableRowModel[] = useMemo(
     () =>
       rows.map((row) => ({
@@ -1280,6 +1289,7 @@ export function BaseGridPageClient({
                 onReorderFields={handleReorderFields}
                 onAddRow={handleAddRow}
                 onRowContextMenu={handleRowContextMenu}
+                filteredFieldIds={filteredFieldIds}
               />
               {contextMenu && (
                 <RowContextMenu

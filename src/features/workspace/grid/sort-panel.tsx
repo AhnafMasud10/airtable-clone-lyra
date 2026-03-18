@@ -134,9 +134,9 @@ function SortRow({
   onChange,
   onDelete,
 }: SortRowProps) {
-  const [openDropdown, setOpenDropdown] = useState<"field" | "direction" | null>(
-    null,
-  );
+  const [openDropdown, setOpenDropdown] = useState<
+    "field" | "direction" | null
+  >(null);
   const [fieldSearch, setFieldSearch] = useState("");
   const rowRef = useRef<HTMLDivElement>(null);
   const fieldTriggerRef = useRef<HTMLButtonElement>(null);
@@ -200,7 +200,10 @@ function SortRow({
           style={{ height: 30, flex: 1 }}
         >
           {/* Field selector */}
-          <div className="relative flex items-stretch border-r border-[rgb(214,218,226)]" style={{ flex: 1 }}>
+          <div
+            className="relative flex items-stretch border-r border-[rgb(214,218,226)]"
+            style={{ flex: 1 }}
+          >
             <button
               ref={fieldTriggerRef}
               type="button"
@@ -225,7 +228,8 @@ function SortRow({
                   className="fixed z-[10000] w-52 rounded-lg border border-[rgb(214,218,226)] bg-white shadow-lg"
                   style={{
                     top:
-                      fieldTriggerRef.current.getBoundingClientRect().bottom + 4,
+                      fieldTriggerRef.current.getBoundingClientRect().bottom +
+                      4,
                     left: fieldTriggerRef.current.getBoundingClientRect().left,
                   }}
                 >
@@ -239,7 +243,10 @@ function SortRow({
                       autoFocus
                     />
                   </div>
-                  <div className="overflow-y-auto py-1" style={{ maxHeight: 260 }}>
+                  <div
+                    className="overflow-y-auto py-1"
+                    style={{ maxHeight: 260 }}
+                  >
                     {filteredFields.map((f) => (
                       <button
                         key={f.id}
@@ -257,7 +264,10 @@ function SortRow({
           </div>
 
           {/* Direction selector */}
-          <div className="relative flex items-stretch border-r border-[rgb(214,218,226)]" style={{ width: 100 }}>
+          <div
+            className="relative flex items-stretch border-r border-[rgb(214,218,226)]"
+            style={{ width: 100 }}
+          >
             <button
               ref={dirTriggerRef}
               type="button"
@@ -428,7 +438,7 @@ export function SortPanel({
             type="button"
             onClick={handleAdd}
             disabled={usedFieldIds.size >= allFields.length}
-            className="flex items-center gap-1 text-[13px] text-[rgb(97,102,112)] hover:text-[rgb(29,31,37)] disabled:opacity-40 focus:outline-none"
+            className="flex items-center gap-1 text-[13px] text-[rgb(97,102,112)] hover:text-[rgb(29,31,37)] focus:outline-none disabled:opacity-40"
           >
             <PlusIcon />
             <span>Add sort</span>

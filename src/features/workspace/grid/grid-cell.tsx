@@ -8,6 +8,7 @@ type GridCellProps = Readonly<{
   value: string;
   isEditing: boolean;
   editValue: string;
+  isFiltered?: boolean;
   virtualRowIndex: number;
   cellIndex: number;
   colWidth: number;
@@ -28,6 +29,7 @@ export const GridCell = memo(function GridCell({
   value,
   isEditing,
   editValue,
+  isFiltered,
   virtualRowIndex,
   cellIndex,
   colWidth,
@@ -37,10 +39,12 @@ export const GridCell = memo(function GridCell({
   onCancelEdit,
   onCellKeyDown,
 }: GridCellProps) {
+  const filteredBg = isFiltered ? "bg-[#ecfce5]" : "";
+
   if (isEditing) {
     return (
       <div
-        className="shrink-0 border-r border-[#d2d9e3]"
+        className={`shrink-0 border-r border-[#d2d9e3] ${filteredBg}`}
         style={{ width: colWidth, height: 32 }}
       >
         <input
@@ -63,7 +67,7 @@ export const GridCell = memo(function GridCell({
 
   return (
     <div
-      className="shrink-0 border-r border-[#d2d9e3]"
+      className={`shrink-0 border-r border-[#d2d9e3] ${filteredBg}`}
       style={{ width: colWidth, height: 32 }}
     >
       <button

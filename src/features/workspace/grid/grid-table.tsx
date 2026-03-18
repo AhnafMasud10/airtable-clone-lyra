@@ -197,6 +197,7 @@ type GridTableProps = Readonly<{
   onAddRow: () => void;
   onReorderFields: (fromIndex: number, toIndex: number) => void;
   onRowContextMenu?: (e: React.MouseEvent, rowId: string) => void;
+  filteredFieldIds?: Set<string>;
 }>;
 
 export function GridTable({
@@ -222,6 +223,7 @@ export function GridTable({
   onAddRow,
   onReorderFields,
   onRowContextMenu,
+  filteredFieldIds,
 }: GridTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
@@ -513,6 +515,7 @@ export function GridTable({
                 const dragFrom = dragCol?.fieldIndex ?? null;
                 const isDropTarget = dropTargetIndex === i && dragFrom !== null && dragFrom !== i;
                 const indicatorSide = dragFrom !== null && dragFrom < i ? "right" : "left";
+                const isFieldFiltered = filteredFieldIds?.has(field.id);
                 return (
                   <div
                     key={field.id}
@@ -523,6 +526,7 @@ export function GridTable({
                       height: ROW_HEIGHT,
                       opacity: isDragging ? 0.35 : 1,
                       cursor: dragCol ? "grabbing" : "grab",
+                      backgroundColor: isFieldFiltered ? "#e6f4df" : undefined,
                     }}
                   >
                     {/* Drop indicator — blue line on insertion edge */}
@@ -790,6 +794,7 @@ export function GridTable({
                         value={rawValue}
                         isEditing={isEditing}
                         editValue={isEditing ? editingCell.value : ""}
+                        isFiltered={filteredFieldIds?.has(fieldId)}
                         virtualRowIndex={item.index}
                         cellIndex={cellIndex}
                         colWidth={colWidth}
