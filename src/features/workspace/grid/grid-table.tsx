@@ -10,6 +10,7 @@ import {
   type KeyboardEvent,
   type UIEvent,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -238,6 +239,9 @@ type GridTableProps = Readonly<{
   onBulkInsert?: () => void;
   isBulkInserting?: boolean;
   bulkProgress?: { inserted: number; total: number } | null;
+  globalSearch?: string;
+  activeSearchMatchIndex?: number;
+  onSearchMatchesChange?: (count: number) => void;
 }>;
 
 export function GridTable({
@@ -268,6 +272,9 @@ export function GridTable({
   onBulkInsert,
   isBulkInserting,
   bulkProgress,
+  globalSearch,
+  activeSearchMatchIndex = 0,
+  onSearchMatchesChange,
 }: GridTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
@@ -476,6 +483,35 @@ export function GridTable({
     getCoreRowModel: getCoreRowModel(),
   });
 
+  // Search matches: flat list of { rowIndex, fieldIndex } for each occurrence
+  const searchMatches = useMemo(() => {
+    const term = globalSearch?.trim().toLowerCase();
+    if (!term) return [];
+    const matches: { rowIndex: number; fieldIndex: number }[] = [];
+    for (let rowIdx = 0; rowIdx < rowModels.length; rowIdx++) {
+      const row = rowModels[rowIdx];
+      if (!row) continue;
+      for (let colIdx = 0; colIdx < fields.length; colIdx++) {
+        const fieldId = fields[colIdx]?.id;
+        if (!fieldId) continue;
+        const val = row.cellsByField[fieldId] ?? "";
+        const lower = val.toLowerCase();
+        let pos = 0;
+        while ((pos = lower.indexOf(term, pos)) !== -1) {
+          matches.push({ rowIndex: rowIdx, fieldIndex: colIdx });
+          pos += term.length;
+        }
+      }
+    }
+    return matches;
+  }, [globalSearch, rowModels, fields]);
+
+  useEffect(() => {
+    onSearchMatchesChange?.(searchMatches.length);
+  }, [searchMatches.length, onSearchMatchesChange]);
+
+  const activeMatch = searchMatches[activeSearchMatchIndex ?? 0];
+
   // Virtualize against totalCount so the scrollbar reflects all rows,
   // even ones not yet fetched. Unloaded rows render as skeletons.
   const loadedRowCount = table.getRowModel().rows.length;
@@ -489,6 +525,20 @@ export function GridTable({
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
+
+  // Scroll to active match when it changes
+  useEffect(() => {
+    if (
+      activeMatch === undefined ||
+      !parentRef.current ||
+      searchMatches.length === 0
+    )
+      return;
+    rowVirtualizer.scrollToIndex(activeMatch.rowIndex, {
+      align: "center",
+      behavior: "smooth",
+    });
+  }, [activeMatch, searchMatches.length, rowVirtualizer]);
 
   // Fetch next page when scrolling near the edge of loaded data
   const lastVirtualItem = virtualItems.at(-1);
@@ -616,6 +666,9 @@ export function GridTable({
                 const isDropTarget = dropTargetIndex === i && dragFrom !== null && dragFrom !== i;
                 const indicatorSide = dragFrom !== null && dragFrom < i ? "right" : "left";
                 const isFieldFiltered = filteredFieldIds?.has(field.id);
+                const term = globalSearch?.trim().toLowerCase();
+                const hasSearchMatchesInColumn =
+                  Boolean(term) && field.name.toLowerCase().includes(term);
                 const fieldTypeLabel = getFieldTypeLabel(field.type);
                 const isPrimary = i === 0;
                 return (
@@ -637,7 +690,11 @@ export function GridTable({
                         : holdFieldIndex === i
                           ? "grab"
                           : "default",
-                      backgroundColor: isFieldFiltered ? "#e6f4df" : undefined,
+                      backgroundColor: hasSearchMatchesInColumn
+                        ? "#facc15"
+                        : isFieldFiltered
+                          ? "#e6f4df"
+                          : undefined,
                     }}
                   >
                     {/* Drop indicator — blue line on insertion edge */}
@@ -945,6 +1002,10 @@ export function GridTable({
                       editingCell?.rowId === row.original.id &&
                       editingCell.fieldId === fieldId;
                     const colWidth = getColumnWidth(fieldId, cellIndex);
+                    const term = globalSearch?.trim().toLowerCase();
+                    const hasSearchMatch =
+                      Boolean(term) &&
+                      rawValue.toLowerCase().includes(term ?? "");
 
                     return (
                       <GridCell
@@ -955,6 +1016,8 @@ export function GridTable({
                         isEditing={isEditing}
                         editValue={isEditing ? editingCell.value : ""}
                         isFiltered={filteredFieldIds?.has(fieldId)}
+                        searchTerm={globalSearch}
+                        hasSearchMatch={hasSearchMatch}
                         virtualRowIndex={item.index}
                         cellIndex={cellIndex}
                         colWidth={colWidth}

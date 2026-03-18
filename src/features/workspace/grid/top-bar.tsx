@@ -99,24 +99,6 @@ function LinkIcon() {
   );
 }
 
-function UsersIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="currentColor"
-      className="flex-none text-white"
-      style={{ shapeRendering: "geometricPrecision" }}
-    >
-      <path d="M6 7a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Zm0-1a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z" />
-      <path d="M11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0-1a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z" />
-      <path d="M5.5 8C3.567 8 2 9.567 2 11.5a.5.5 0 0 0 1 0C3 10.12 4.12 9 5.5 9h1c1.38 0 2.5 1.12 2.5 2.5a.5.5 0 0 0 1 0C10 9.567 8.433 8 6.5 8h-1Z" />
-      <path d="M11 8c-0.57 0-1.1.13-1.58.37a.5.5 0 1 0 .44.9A2.49 2.49 0 0 1 11 9c1.38 0 2.5 1.12 2.5 2.5a.5.5 0 0 0 1 0C14.5 9.567 12.933 8 11 8Z" />
-    </svg>
-  );
-}
-
 const NAV_ITEMS = [
   { label: "Data", active: true },
   { label: "Automations", active: false },
@@ -146,7 +128,7 @@ export function TopBar({ baseName, onRenameBase }: TopBarProps) {
 
   return (
     <header
-      className="relative"
+      className="relative shrink-0"
       style={{
         backgroundColor: "white",
         borderBottom: `1px solid ${BORDER_DEFAULT}`,
@@ -231,7 +213,8 @@ export function TopBar({ baseName, onRenameBase }: TopBarProps) {
                 <ChevronDownIcon />
               </button>
 
-              {popupOpen && nameButtonRef.current &&
+              {popupOpen &&
+                nameButtonRef.current &&
                 createPortal(
                   <BaseSettingsPopup
                     baseName={baseName}
@@ -301,7 +284,7 @@ export function TopBar({ baseName, onRenameBase }: TopBarProps) {
 
         {/* Right: actions */}
         <div
-          className="flex items-center justify-end overflow-hidden"
+          className="flex items-center justify-end"
           style={{ paddingRight: "16px" }}
         >
           <div className="inline-flex items-center" style={{ gap: "8px" }}>
@@ -395,10 +378,12 @@ export function TopBar({ baseName, onRenameBase }: TopBarProps) {
                 <LinkIcon />
               </button>
 
-              {/* Share (icon only, green bg) */}
+              {/* Share — green bg, "Share" text */}
               <button
                 type="button"
-                className="flex items-center"
+                data-tutorial-selector-id="applicationShareButton"
+                aria-description="Tooltip: Share"
+                className="flex items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-current"
                 style={{
                   height: "28px",
                   borderRadius: "6px",
@@ -406,6 +391,7 @@ export function TopBar({ baseName, onRenameBase }: TopBarProps) {
                   fontSize: "13px",
                   fontWeight: 600,
                   lineHeight: "24px",
+                  color: "white",
                   backgroundColor: GREEN_DUSTY,
                   boxShadow: SHADOW_LOW,
                   border: "none",
@@ -418,7 +404,7 @@ export function TopBar({ baseName, onRenameBase }: TopBarProps) {
                   e.currentTarget.style.boxShadow = SHADOW_LOW;
                 }}
               >
-                <UsersIcon />
+                <span className="truncate">Share</span>
               </button>
             </div>
           </div>
@@ -432,15 +418,34 @@ export function TopBar({ baseName, onRenameBase }: TopBarProps) {
 
 function StarOutlineIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
-      <path d="M8 1.5l1.76 3.57 3.94.57-2.85 2.78.67 3.93L8 10.67l-3.52 1.68.67-3.93L2.3 5.64l3.94-.57L8 1.5z" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <path
+        d="M8 1.5l1.76 3.57 3.94.57-2.85 2.78.67 3.93L8 10.67l-3.52 1.68.67-3.93L2.3 5.64l3.94-.57L8 1.5z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
 
 function OverflowIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
       <circle cx="4" cy="8" r="1.25" fill="currentColor" />
       <circle cx="8" cy="8" r="1.25" fill="currentColor" />
       <circle cx="12" cy="8" r="1.25" fill="currentColor" />

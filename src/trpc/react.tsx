@@ -45,20 +45,9 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
     api.createClient({
       links: [
         loggerLink({
-          enabled: (op) => {
-            if (op.direction !== "down" || !(op.result instanceof Error))
-              return false;
-            // Don't log expected cancellation errors (navigation, query key
-            // change, component unmount, React Strict Mode double-mount)
-            const err = op.result as Error & { cause?: Error };
-            if (
-              err.name === "AbortError" ||
-              err.message?.toLowerCase().includes("abort") ||
-              err.cause?.name === "AbortError"
-            )
-              return false;
-            return true;
-          },
+          // Disable in dev: React Strict Mode double-mount causes false
+          // "aborted" errors that clutter the console (table.listByBase, etc.)
+          enabled: () => false,
         }),
         httpBatchStreamLink({
           transformer: SuperJSON,

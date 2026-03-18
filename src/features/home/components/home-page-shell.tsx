@@ -9,8 +9,8 @@ export function HomePageShell() {
         <HomeTopbar />
         <div className="flex min-h-0 flex-1">
           <HomeSidebar />
-          <div className="flex min-w-0 flex-1 flex-col overflow-auto bg-[#f8f8f8]">
-            <div className="mx-auto w-full max-w-[1920px] flex-1 px-7 pt-6">
+          <div className="flex min-w-0 flex-1 flex-col overflow-auto" style={{ backgroundColor: "#f9f9f9", minWidth: 480 }}>
+            <div className="flex-auto px-[53px] pt-[45px]" style={{ maxWidth: 1920 }}>
               <HomeContent />
             </div>
           </div>

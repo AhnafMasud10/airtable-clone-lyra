@@ -53,6 +53,8 @@ export function BaseGridPageClient({
     value: string;
   } | null>(null);
   const [showSearch, setShowSearch] = useState(false);
+  const [searchMatchCount, setSearchMatchCount] = useState(0);
+  const [activeSearchMatchIndex, setActiveSearchMatchIndex] = useState(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<{
@@ -98,6 +100,27 @@ export function BaseGridPageClient({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    setActiveSearchMatchIndex(0);
+  }, [globalSearch]);
+
+  const handleSearchMatchesChange = useCallback((count: number) => {
+    setSearchMatchCount(count);
+    setActiveSearchMatchIndex((prev) => (count > 0 ? Math.min(prev, count - 1) : 0));
+  }, []);
+
+  const handlePrevSearchMatch = useCallback(() => {
+    setActiveSearchMatchIndex((prev) =>
+      searchMatchCount > 0 ? (prev - 1 + searchMatchCount) % searchMatchCount : 0,
+    );
+  }, [searchMatchCount]);
+
+  const handleNextSearchMatch = useCallback(() => {
+    setActiveSearchMatchIndex((prev) =>
+      searchMatchCount > 0 ? (prev + 1) % searchMatchCount : 0,
+    );
+  }, [searchMatchCount]);
 
   // ── Queries ──────────────────────────────────────────────────────────
 
@@ -1644,6 +1667,10 @@ export function BaseGridPageClient({
                 return !v;
               });
             }}
+            searchMatchCount={searchMatchCount}
+            activeSearchMatchIndex={activeSearchMatchIndex}
+            onPrevSearchMatch={handlePrevSearchMatch}
+            onNextSearchMatch={handleNextSearchMatch}
           />
 
           {/* View sidebar (collapsible) | Grid */}
@@ -1732,6 +1759,9 @@ export function BaseGridPageClient({
                 onBulkInsert={handleBulkInsert}
                 isBulkInserting={bulkProgress !== null}
                 bulkProgress={bulkProgress}
+                globalSearch={globalSearch}
+                activeSearchMatchIndex={activeSearchMatchIndex}
+                onSearchMatchesChange={handleSearchMatchesChange}
               />
               {contextMenu && (
                 <RowContextMenu

@@ -1,6 +1,32 @@
 "use client";
 
-import { type KeyboardEvent, memo } from "react";
+import { type KeyboardEvent, memo, useMemo } from "react";
+
+function getHighlightedSegments(
+  text: string,
+  searchTerm: string,
+): { text: string; highlight: boolean }[] {
+  if (!searchTerm.trim()) return [{ text, highlight: false }];
+  const term = searchTerm.trim().toLowerCase();
+  const segments: { text: string; highlight: boolean }[] = [];
+  let pos = 0;
+  while (pos < text.length) {
+    const matchIndex = text.toLowerCase().indexOf(term, pos);
+    if (matchIndex === -1) {
+      segments.push({ text: text.slice(pos), highlight: false });
+      break;
+    }
+    if (matchIndex > pos) {
+      segments.push({ text: text.slice(pos, matchIndex), highlight: false });
+    }
+    segments.push({
+      text: text.slice(matchIndex, matchIndex + term.length),
+      highlight: true,
+    });
+    pos = matchIndex + term.length;
+  }
+  return segments;
+}
 
 type GridCellProps = Readonly<{
   rowId: string;
@@ -9,6 +35,8 @@ type GridCellProps = Readonly<{
   isEditing: boolean;
   editValue: string;
   isFiltered?: boolean;
+  searchTerm?: string;
+  hasSearchMatch?: boolean;
   virtualRowIndex: number;
   cellIndex: number;
   colWidth: number;
@@ -30,6 +58,8 @@ export const GridCell = memo(function GridCell({
   isEditing,
   editValue,
   isFiltered,
+  searchTerm,
+  hasSearchMatch,
   virtualRowIndex,
   cellIndex,
   colWidth,
@@ -40,11 +70,34 @@ export const GridCell = memo(function GridCell({
   onCellKeyDown,
 }: GridCellProps) {
   const filteredBg = isFiltered ? "bg-[#ecfce5]" : "";
+  const searchMatchBg = hasSearchMatch ? "bg-[#fef9c3]" : "";
+
+  const highlightedContent = useMemo(() => {
+    if (!searchTerm?.trim() || !value) return null;
+    const segments = getHighlightedSegments(value, searchTerm);
+    return (
+      <>
+        {segments.map((seg, i) =>
+          seg.highlight ? (
+            <mark
+              key={`${i}-${seg.text}-h`}
+              className="rounded bg-[#fde047] font-normal text-inherit"
+              style={{ padding: "0 1px" }}
+            >
+              {seg.text}
+            </mark>
+          ) : (
+            <span key={`${i}-${seg.text}-n`}>{seg.text}</span>
+          ),
+        )}
+      </>
+    );
+  }, [value, searchTerm]);
 
   if (isEditing) {
     return (
       <div
-        className={`shrink-0 border-r border-[#d2d9e3] ${filteredBg}`}
+        className={`shrink-0 border-r border-[#d2d9e3] ${filteredBg} ${searchMatchBg}`}
         style={{ width: colWidth, height: 32 }}
       >
         <input
@@ -67,12 +120,13 @@ export const GridCell = memo(function GridCell({
 
   return (
     <div
-      className={`shrink-0 border-r border-[#d2d9e3] ${filteredBg}`}
+      className={`shrink-0 border-r border-[#d2d9e3] ${filteredBg} ${searchMatchBg}`}
       style={{ width: colWidth, height: 32 }}
     >
       <button
         type="button"
         data-cell={`${virtualRowIndex}-${cellIndex}`}
+        data-search-match={hasSearchMatch ? "true" : undefined}
         onDoubleClick={() => onStartEdit(rowId, fieldId, value)}
         onKeyDown={(e) => {
           const isCopy = (e.ctrlKey || e.metaKey) && e.key === "c";
@@ -102,7 +156,7 @@ export const GridCell = memo(function GridCell({
         }}
         className="flex h-full w-full items-center truncate px-[6px] text-left text-[13px] leading-4 text-[#253044] hover:bg-[#f1f5fc] focus:ring-2 focus:ring-[#2a79ef] focus:outline-none focus:ring-inset"
       >
-        {value}
+        {highlightedContent ?? value}
       </button>
     </div>
   );

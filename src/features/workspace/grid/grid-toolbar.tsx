@@ -5,6 +5,7 @@ import type { GridField, GridFilter, GridSort } from "./types";
 import { HideFieldsPanel } from "./hide-fields-panel";
 import { FilterPanel } from "./filter-panel";
 import { SortPanel } from "./sort-panel";
+import { GroupPanel } from "./group-panel";
 
 type GridToolbarProps = Readonly<{
   selectedTableName: string;
@@ -27,6 +28,10 @@ type GridToolbarProps = Readonly<{
   onSortsChange: (sorts: GridSort[]) => void;
   showSearch: boolean;
   onToggleSearch: () => void;
+  searchMatchCount?: number;
+  activeSearchMatchIndex?: number;
+  onPrevSearchMatch?: () => void;
+  onNextSearchMatch?: () => void;
 }>;
 
 function ListIcon() {
@@ -137,6 +142,21 @@ function ToolbarButton({ icon, label, onClick }: ToolbarButtonProps) {
 const FONT_FAMILY =
   "-apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif";
 
+function ChevronUpIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="flex-none"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <path d="M4.22 9.78a.75.75 0 0 1 1.06 0L8 12.06l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 10.84a.75.75 0 0 1 0-1.06Z" />
+    </svg>
+  );
+}
+
 export function GridToolbar({
   selectedTableName,
   globalSearch,
@@ -155,13 +175,19 @@ export function GridToolbar({
   onSortsChange,
   showSearch,
   onToggleSearch,
+  searchMatchCount = 0,
+  activeSearchMatchIndex = 0,
+  onPrevSearchMatch,
+  onNextSearchMatch,
 }: GridToolbarProps) {
   const [showHidePanel, setShowHidePanel] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [showSortPanel, setShowSortPanel] = useState(false);
+  const [showGroupPanel, setShowGroupPanel] = useState(false);
   const hideButtonRef = useRef<HTMLButtonElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const sortButtonRef = useRef<HTMLButtonElement>(null);
+  const groupButtonRef = useRef<HTMLButtonElement>(null);
 
   const hiddenCount = hiddenFieldIds.length;
   const hiddenLabel =
@@ -236,10 +262,10 @@ export function GridToolbar({
 
       {/* Right section: toolbar buttons */}
       <div
-        className="flex flex-1 items-center justify-end pr-2"
+        className="flex flex-1 items-center justify-end gap-3 pr-2"
         style={{ height: 48 }}
       >
-        <div className="relative flex items-center">
+        <div className="relative flex items-center gap-3">
           {/* Hide fields */}
           <button
             ref={hideButtonRef}
@@ -315,24 +341,37 @@ export function GridToolbar({
           )}
 
           {/* Group */}
-          <ToolbarButton
-            icon={
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-                className="flex-none"
-                style={{ shapeRendering: "geometricPrecision" }}
-              >
-                <rect x="2" y="2" width="5" height="5" rx="1" />
-                <rect x="9" y="2" width="5" height="5" rx="1" />
-                <rect x="2" y="9" width="5" height="5" rx="1" />
-                <rect x="9" y="9" width="5" height="5" rx="1" />
-              </svg>
-            }
-            label="Group"
-          />
+          <button
+            ref={groupButtonRef}
+            type="button"
+            onClick={() => setShowGroupPanel((v) => !v)}
+            className={`flex cursor-pointer items-center rounded px-2 py-1 hover:bg-[rgb(229,233,240)] ${showGroupPanel ? "text-[rgb(22,110,225)]" : "text-[rgb(97,102,112)]"}`}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              className="flex-none"
+              style={{ shapeRendering: "geometricPrecision" }}
+            >
+              <rect x="2" y="2" width="5" height="5" rx="1" />
+              <rect x="9" y="2" width="5" height="5" rx="1" />
+              <rect x="2" y="9" width="5" height="5" rx="1" />
+              <rect x="9" y="9" width="5" height="5" rx="1" />
+            </svg>
+            <div className="ml-1 max-w-24 truncate" style={{ fontSize: 13 }}>
+              Group
+            </div>
+          </button>
+
+          {showGroupPanel && (
+            <GroupPanel
+              allFields={allFields}
+              onClose={() => setShowGroupPanel(false)}
+              anchorRef={groupButtonRef}
+            />
+          )}
 
           {/* Sort */}
           <button
@@ -454,7 +493,7 @@ export function GridToolbar({
 
         {/* Inline search input */}
         {showSearch && (
-          <div className="ml-1 flex items-center">
+          <div className="ml-1 flex items-center gap-1">
             <input
               value={globalSearch}
               onChange={(e) => onGlobalSearchChange(e.target.value)}
@@ -462,6 +501,29 @@ export function GridToolbar({
               className="h-7 w-48 rounded border border-[rgb(22,110,225)] bg-white px-2 text-[13px] outline-none"
               autoFocus
             />
+            {searchMatchCount > 0 && (
+              <div className="flex items-center gap-0.5 rounded border border-[rgb(22,110,225)] bg-white px-1.5 text-[13px] text-[rgb(97,102,112)]">
+                <span className="min-w-[3ch] text-center">
+                  {activeSearchMatchIndex + 1} of {searchMatchCount}
+                </span>
+                <button
+                  type="button"
+                  onClick={onPrevSearchMatch}
+                  className="flex h-6 w-6 items-center justify-center rounded hover:bg-[rgb(229,233,240)]"
+                  aria-label="Previous match"
+                >
+                  <ChevronUpIcon />
+                </button>
+                <button
+                  type="button"
+                  onClick={onNextSearchMatch}
+                  className="flex h-6 w-6 items-center justify-center rounded hover:bg-[rgb(229,233,240)]"
+                  aria-label="Next match"
+                >
+                  <ChevronDownIcon />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

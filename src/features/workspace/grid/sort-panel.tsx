@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { GridField, GridSort } from "./types";
+import { FieldTypeIcon } from "./field-type-icon";
 
 const PANEL_WIDTH = 420;
 const FONT_FAMILY =
-  "-apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif";
+  "-apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
 type SortPanelProps = Readonly<{
   sorts: GridSort[];
@@ -98,6 +99,21 @@ function DragHandleIcon() {
       <circle cx="10" cy="8" r="1" />
       <circle cx="6" cy="12" r="1" />
       <circle cx="10" cy="12" r="1" />
+    </svg>
+  );
+}
+
+function MagnifyingGlassIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      className="flex-none text-[rgb(150,155,165)]"
+      style={{ shapeRendering: "geometricPrecision" }}
+    >
+      <path d="M11.27 10.21a6 6 0 1 0-1.06 1.06l3.26 3.26a.75.75 0 1 0 1.06-1.06l-3.26-3.26ZM7 11.5a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9Z" />
     </svg>
   );
 }
@@ -225,21 +241,23 @@ function SortRow({
                 <div
                   data-popup
                   data-sort-dropdown
-                  className="fixed z-[10000] w-52 rounded-lg border border-[rgb(214,218,226)] bg-white shadow-lg"
+                  className="fixed z-[10005] w-64 rounded-lg overflow-hidden bg-white"
                   style={{
                     top:
-                      fieldTriggerRef.current.getBoundingClientRect().bottom +
-                      4,
+                      fieldTriggerRef.current.getBoundingClientRect().bottom + 4,
                     left: fieldTriggerRef.current.getBoundingClientRect().left,
+                    boxShadow:
+                      "0 0 0 1px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.12)",
                   }}
                 >
-                  <div className="border-b border-[rgb(214,218,226)] px-3 py-2">
+                  <div className="flex items-center px-3 py-2 border-b border-[rgb(214,218,226)]">
+                    <MagnifyingGlassIcon />
                     <input
                       type="text"
                       value={fieldSearch}
                       onChange={(e) => setFieldSearch(e.target.value)}
                       placeholder="Find a field"
-                      className="w-full bg-transparent text-[13px] text-[rgb(29,31,37)] placeholder-[rgb(150,155,165)] outline-none"
+                      className="flex-auto border-none outline-none placeholder-[rgb(150,155,165)] pl-1.5 bg-transparent text-[13px] text-[rgb(29,31,37)]"
                       autoFocus
                     />
                   </div>
@@ -252,9 +270,10 @@ function SortRow({
                         key={f.id}
                         type="button"
                         onClick={() => handleFieldSelect(f)}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)]"
+                        className="flex w-full items-center px-3 py-1.5 text-left text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(247,248,250)]"
                       >
-                        {f.name}
+                        <FieldTypeIcon type={f.type} />
+                        <span className="truncate">{f.name}</span>
                       </button>
                     ))}
                   </div>
@@ -272,7 +291,9 @@ function SortRow({
               ref={dirTriggerRef}
               type="button"
               onClick={() =>
-                setOpenDropdown((d) => (d === "direction" ? null : "direction"))
+                setOpenDropdown((d) =>
+                  d === "direction" ? null : "direction",
+                )
               }
               className="flex h-full w-full items-center px-2 text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(246,248,250)] focus:outline-none"
             >
@@ -287,7 +308,7 @@ function SortRow({
                 <div
                   data-popup
                   data-sort-dropdown
-                  className="fixed z-[10000] w-36 rounded-lg border border-[rgb(214,218,226)] bg-white py-1 shadow-lg"
+                  className="fixed z-[10005] w-36 rounded-lg border border-[rgb(214,218,226)] bg-white py-1 shadow-lg"
                   style={{
                     top:
                       dirTriggerRef.current.getBoundingClientRect().bottom + 4,
@@ -336,7 +357,10 @@ export function SortPanel({
   onClose,
   anchorRef,
 }: SortPanelProps) {
+  const [search, setSearch] = useState("");
+  const [addSortOpen, setAddSortOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
@@ -353,11 +377,17 @@ export function SortPanel({
     function handleDown(e: MouseEvent) {
       const target = e.target as Node;
       const el = target as Element;
+      const inAddOverlay = el.closest?.("[data-sort-dropdown]");
+      const inPanel = panelRef.current?.contains(target);
+      const inAnchor = anchorRef.current?.contains(target);
+
+      if (addSortOpen && !inAddOverlay) {
+        setAddSortOpen(false);
+      }
       if (
-        panelRef.current &&
-        !panelRef.current.contains(target) &&
-        anchorRef.current &&
-        !anchorRef.current.contains(target) &&
+        !inPanel &&
+        !inAnchor &&
+        !inAddOverlay &&
         !el.closest?.("[data-popup]")
       ) {
         onClose();
@@ -365,14 +395,18 @@ export function SortPanel({
     }
     document.addEventListener("mousedown", handleDown);
     return () => document.removeEventListener("mousedown", handleDown);
-  }, [onClose, anchorRef]);
+  }, [onClose, anchorRef, addSortOpen]);
 
   const usedFieldIds = new Set(sorts.map((s) => s.fieldId));
+  const addSortFields = allFields.filter((f) => !usedFieldIds.has(f.id));
+  const filteredAddFields = addSortFields.filter((f) =>
+    f.name.toLowerCase().includes(search.toLowerCase()),
+  );
 
-  const handleAdd = () => {
-    const available = allFields.find((f) => !usedFieldIds.has(f.id));
-    if (!available) return;
-    onSortsChange([...sorts, makeDefaultSort(available)]);
+  const handleAddSortSelect = (field: GridField) => {
+    onSortsChange([...sorts, makeDefaultSort(field)]);
+    setAddSortOpen(false);
+    setSearch("");
   };
 
   const handleChange = (i: number, s: GridSort) => {
@@ -390,33 +424,55 @@ export function SortPanel({
   const panel = (
     <div
       ref={panelRef}
+      data-popup
+      data-testid="view-config-sort"
       style={{
         position: "fixed",
         top: pos.top,
         left: pos.left,
         width: PANEL_WIDTH,
-        zIndex: 9999,
+        zIndex: 10004,
         fontFamily: FONT_FAMILY,
       }}
     >
       <div
-        className="flex flex-col overflow-hidden rounded border border-[rgb(214,218,226)] bg-white shadow-[0_4px_16px_rgba(0,0,0,0.12)]"
-        style={{ maxHeight: "calc(100vh - 120px)" }}
+        className="flex flex-col overflow-hidden rounded-lg bg-white"
+        style={{
+          maxHeight: "calc(100vh - 120px)",
+          boxShadow:
+            "0 0 0 1px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.12)",
+        }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-2">
-          <h3 className="text-[11px] leading-none font-semibold tracking-wide text-[rgb(97,102,112)] uppercase">
-            Sort
-          </h3>
+        {/* Header: Sort by + help icon */}
+        <div className="px-4 pt-4 pb-2">
+          <div className="flex items-center">
+            <p
+              className="text-[13px] font-semibold text-[rgb(97,102,112)] leading-6"
+              style={{ fontFamily: "inherit" }}
+            >
+              Sort by
+            </p>
+            <button
+              type="button"
+              aria-label="Learn more about sorting"
+              className="flex items-center ml-1 text-[rgb(97,102,112)] hover:text-[rgb(29,31,37)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(22,110,225)] rounded"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                className="flex-none"
+                style={{ shapeRendering: "geometricPrecision" }}
+              >
+                <path d="M8 1.5a6.5 6.5 0 1 0 0 13A6.5 6.5 0 0 0 8 1.5ZM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-2.75a1 1 0 0 0-.956.703.75.75 0 1 1-1.432-.452 2.5 2.5 0 1 1 3.127 3.153.75.75 0 0 1-.739.596.75.75 0 0 1-.75-.75V8a.75.75 0 0 1 .75-.75 1 1 0 1 0 0-2ZM7.25 11a.75.75 0 1 1 1.5 0 .75.75 0 0 1-1.5 0Z" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Sort rows */}
         <div className="overflow-auto px-4" style={{ maxHeight: 425 }}>
-          {sorts.length === 0 && (
-            <div className="py-2 text-[13px] text-[rgb(150,155,165)]">
-              No sorts applied to this view
-            </div>
-          )}
           <div className="flex flex-col gap-1 pb-2">
             {sorts.map((sort, i) => (
               <SortRow
@@ -432,17 +488,72 @@ export function SortPanel({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center border-t border-[rgb(214,218,226)] px-4 py-3">
+        {/* Add another sort */}
+        <div className="relative flex border-t border-[rgb(214,218,226)] px-4 py-3">
           <button
+            ref={addButtonRef}
             type="button"
-            onClick={handleAdd}
+            onClick={() =>
+              setAddSortOpen((o) => !o)
+            }
             disabled={usedFieldIds.size >= allFields.length}
             className="flex items-center gap-1 text-[13px] text-[rgb(97,102,112)] hover:text-[rgb(29,31,37)] focus:outline-none disabled:opacity-40"
           >
             <PlusIcon />
-            <span>Add sort</span>
+            <span>Add another sort</span>
           </button>
+
+          {/* Field picker overlay for Add another sort */}
+          {addSortOpen &&
+            addButtonRef.current &&
+            createPortal(
+              <div
+                data-popup
+                data-sort-dropdown
+                className="fixed z-[10005] w-64 rounded-lg overflow-hidden bg-white"
+                style={{
+                  top:
+                    addButtonRef.current.getBoundingClientRect().bottom + 4,
+                  left: addButtonRef.current.getBoundingClientRect().left,
+                  boxShadow:
+                    "0 0 0 1px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.12)",
+                }}
+              >
+                <div className="flex items-center px-3 py-2 border-b border-[rgb(214,218,226)]">
+                  <MagnifyingGlassIcon />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Find a field"
+                    className="flex-auto border-none outline-none placeholder-[rgb(150,155,165)] pl-1.5 bg-transparent text-[13px] text-[rgb(29,31,37)]"
+                    autoFocus
+                  />
+                </div>
+                <div
+                  className="overflow-y-auto py-1"
+                  style={{ minHeight: 100, maxHeight: 260 }}
+                >
+                  {filteredAddFields.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => handleAddSortSelect(f)}
+                      className="flex w-full items-center px-3 py-1.5 text-left text-[13px] text-[rgb(29,31,37)] hover:bg-[rgb(247,248,250)]"
+                    >
+                      <FieldTypeIcon type={f.type} />
+                      <span className="truncate">{f.name}</span>
+                    </button>
+                  ))}
+                  {filteredAddFields.length === 0 && (
+                    <div className="px-4 py-5 text-center text-[12px] text-[rgb(150,155,165)]">
+                      No fields available
+                    </div>
+                  )}
+                </div>
+              </div>,
+              document.body,
+            )}
         </div>
       </div>
     </div>

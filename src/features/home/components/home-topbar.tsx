@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { auth } from "~/server/auth";
 import { UserMenu } from "~/features/auth/user-menu";
+import { SearchDialog } from "./search-dialog";
 
 export async function HomeTopbar() {
   const session = await auth();
   return (
-    <header className="flex shrink-0 items-center bg-white shadow-sm">
-      <nav className="flex w-full items-center pr-2 pl-1">
+    <header className="relative z-10 flex h-[56px] shrink-0 items-center border-b border-[#e5e5e5] bg-white">
+      <nav className="flex w-full items-center gap-4 px-3">
         {/* Left: hamburger + logo */}
         <div className="flex items-center">
           <div className="flex flex-auto items-center">
@@ -61,44 +62,22 @@ export async function HomeTopbar() {
               </g>
             </svg>
           </Link>
-            <div className="flex-auto" />
           </div>
         </div>
 
         {/* Center: search bar */}
-        <div className="flex flex-1 justify-center">
-          <div className="flex w-full items-center">
-            <button
-              type="button"
-              className="flex w-full cursor-pointer items-center rounded-full bg-white px-3 py-1.5 shadow-sm transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                className="shrink-0 text-[#999]"
-                fill="currentColor"
-              >
-                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z" />
-              </svg>
-              <span className="ml-2 flex-auto text-left text-sm text-[#999]">
-                Search...
-              </span>
-              <span className="ml-2 text-sm text-[#bbb]">&#8984; K</span>
-            </button>
-          </div>
+        <div className="flex min-w-0 flex-1 justify-center px-4">
+          <SearchDialog />
         </div>
 
         {/* Right: help, notifications, avatar */}
-        <div className="flex items-center">
-          <div className="flex flex-auto items-center justify-end">
-            {/* Help button */}
-            <button
-              type="button"
-              className="flex cursor-pointer items-center gap-1 rounded-full text-[#666] hover:text-[#333] focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
-              aria-label="Help menu"
-              style={{ height: 28 }}
-            >
+        <div className="flex items-center gap-2">
+          {/* Help button */}
+          <button
+            type="button"
+            className="flex cursor-pointer items-center gap-1 rounded-full px-2 py-1 text-[#666] hover:bg-[#f5f5f5] hover:text-[#333] focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
+            aria-label="Help menu"
+          >
               <svg
                 width="16"
                 height="16"
@@ -108,16 +87,15 @@ export async function HomeTopbar() {
               >
                 <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.75 11.5h1.5v-1.5h-1.5v1.5zm.75-9a2.5 2.5 0 0 0-2.5 2.5h1.5a1 1 0 1 1 2 0c0 .55-.45 1-1 1a.75.75 0 0 0-.75.75V9h1.5v-.33A2.5 2.5 0 0 0 8 3.5z" />
               </svg>
-              <span className="text-sm">Help</span>
-            </button>
+              <span className="text-[13px]">Help</span>
+          </button>
 
-            {/* Notifications bell */}
-            <button
-              type="button"
-              className="relative flex cursor-pointer items-center justify-center rounded-full bg-white shadow-sm hover:shadow focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
-              aria-label="No unseen notifications"
-              style={{ height: 28, width: 28, margin: "0 0.75rem" }}
-            >
+          {/* Notifications bell */}
+          <button
+            type="button"
+            className="relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-[#e5e5e5] bg-white hover:bg-[#f5f5f5] focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
+            aria-label="No unseen notifications"
+          >
               <svg
                 width="16"
                 height="16"
@@ -127,15 +105,14 @@ export async function HomeTopbar() {
               >
                 <path d="M8 14.5c.83 0 1.5-.67 1.5-1.5h-3c0 .83.67 1.5 1.5 1.5zm5-3.5V7.5C13 5.01 11.5 2.91 9.5 2.32V1.75a1.5 1.5 0 0 0-3 0v.57C4.5 2.91 3 5.01 3 7.5V11l-1.5 1.5v.5h13v-.5L13 11z" />
               </svg>
-            </button>
+          </button>
 
-            {/* User avatar */}
-            {session?.user && (
-              <div className="ml-1 shrink-0">
-                <UserMenu user={session.user} />
-              </div>
-            )}
-          </div>
+          {/* User avatar */}
+          {session?.user && (
+            <div className="shrink-0">
+              <UserMenu user={session.user} />
+            </div>
+          )}
         </div>
       </nav>
     </header>

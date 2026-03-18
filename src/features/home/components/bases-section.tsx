@@ -8,8 +8,11 @@ const accentColors = [
   "bg-[#5b7daa]",
 ];
 
+type FilterValue = "today" | "past7" | "past30" | "anytime";
+
 type BasesSectionProps = Readonly<{
   bases: HomeBase[];
+  filter?: FilterValue;
 }>;
 
 function SectionGroup({
@@ -26,11 +29,11 @@ function SectionGroup({
   if (bases.length === 0) return null;
 
   return (
-    <section className="mb-5">
-      <h3 className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-[#888]">
+    <div className="mb-[20px] flex w-full flex-col items-start">
+      <h4 className="mb-[8px] text-[11px] font-semibold uppercase tracking-wide text-[#888]">
         {title}
-      </h3>
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+      </h4>
+      <div className="mt-[4px] w-full" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(286px, 1fr))", gap: 12 }}>
         {bases.map((base, index) => (
           <BaseCard
             key={base.id}
@@ -40,28 +43,38 @@ function SectionGroup({
           />
         ))}
       </div>
-    </section>
+    </div>
   );
 }
 
-export function BasesSection({ bases }: BasesSectionProps) {
+export function BasesSection({ bases, filter = "anytime" }: BasesSectionProps) {
   const grouped = groupBasesForHome(bases);
 
+  const showToday = filter === "anytime" || filter === "today";
+  const showPast7 = filter === "anytime" || filter === "past7";
+  const showPast30 = filter === "anytime" || filter === "past30";
+
   return (
-    <div className="mt-2">
-      <SectionGroup title="Today" bases={grouped.today} group="today" />
-      <SectionGroup
-        title="Past 7 days"
-        bases={grouped.past7Days}
-        group="past7Days"
-        offset={grouped.today.length}
-      />
-      <SectionGroup
-        title="Past 30 days"
-        bases={grouped.past30Days}
-        group="past30Days"
-        offset={grouped.today.length + grouped.past7Days.length}
-      />
-    </div>
+    <>
+      {showToday && (
+        <SectionGroup title="Today" bases={grouped.today} group="today" />
+      )}
+      {showPast7 && (
+        <SectionGroup
+          title="Past 7 days"
+          bases={grouped.past7Days}
+          group="past7Days"
+          offset={grouped.today.length}
+        />
+      )}
+      {showPast30 && (
+        <SectionGroup
+          title="Past 30 days"
+          bases={grouped.past30Days}
+          group="past30Days"
+          offset={grouped.today.length + grouped.past7Days.length}
+        />
+      )}
+    </>
   );
 }

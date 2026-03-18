@@ -16,29 +16,33 @@ export function SidebarNavItem({
   trailing,
   icon,
 }: SidebarNavItemProps) {
-  const className = `flex items-center justify-between rounded-md px-3 py-2 text-[15px] transition ${
-    active
-      ? "bg-[#f0f0f0] font-semibold text-[#333]"
-      : "text-[#333] hover:bg-[#f5f5f5]"
+  const wrapperClass = `flex items-center justify-between rounded mb-[4px] hover:bg-[#f5f5f5] ${
+    active ? "bg-[#f0f0f0]" : ""
   }`;
-
-  const content = (
-    <>
-      <span className="flex items-center gap-2.5">
-        <span className="flex items-center text-[#444]">{icon}</span>
-        <span>{label}</span>
-      </span>
-      {trailing}
-    </>
-  );
 
   if (href) {
     return (
-      <Link href={href} className={className}>
-        {content}
-      </Link>
+      <div className={wrapperClass}>
+        <Link href={href} className="flex flex-1 items-center no-underline px-[12px]">
+          <span className="flex shrink-0 items-center text-[#333]">{icon}</span>
+          <h4 className="truncate py-[8px] pl-[8px] text-[16px] font-medium leading-[22px] text-[#333]">
+            {label}
+          </h4>
+        </Link>
+        {trailing}
+      </div>
     );
   }
 
-  return <div className={className}>{content}</div>;
+  return (
+    <div className={wrapperClass}>
+      <span className="flex flex-1 items-center px-[12px]">
+        <span className="flex shrink-0 items-center text-[#333]">{icon}</span>
+        <h4 className="truncate py-[8px] pl-[8px] text-[16px] font-medium leading-[22px] text-[#333]">
+          {label}
+        </h4>
+      </span>
+      {trailing}
+    </div>
+  );
 }
