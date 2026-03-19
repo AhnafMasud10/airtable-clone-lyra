@@ -24,7 +24,6 @@ import {
 
 import { assertBaseOwnership, assertTableAccess, assertTableAccessRaw } from "../auth-helpers";
 import { pool } from "~/server/db";
-import { createId } from "@paralleldrive/cuid2";
 
 const numberRegex = String.raw`^-?[0-9]+(\.[0-9]+)?$`;
 
@@ -441,68 +440,108 @@ export const tableRouter = createTRPCRouter({
       }
       const count = input.count;
 
+      // Pre-generate 1000 faker template values per field as flat arrays for fast indexing.
+      // fieldTemplates[fieldIdx][rowIdx % TEMPLATE_SIZE] = value string
       const TEMPLATE_SIZE = Math.min(1000, count);
-      const templates = new Map<string, string[]>();
+      const fieldTemplates: string[][] = [];
+      const fieldIds: string[] = [];
       for (const field of fields) {
-        const values: string[] = [];
+        fieldIds.push(field.id);
+        const values: string[] = new Array(TEMPLATE_SIZE);
         for (let i = 0; i < TEMPLATE_SIZE; i++) {
-          values.push(fakerValueForField(field));
+          values[i] = fakerValueForField(field);
         }
-        templates.set(field.id, values);
+        fieldTemplates.push(values);
       }
+      const numFields = fields.length;
 
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
+        await client.query(`
+          SET LOCAL synchronous_commit = off;
+          SET LOCAL work_mem = '256MB';
+          SET LOCAL maintenance_work_mem = '256MB';
+        `);
 
-        const RECORD_BATCH = 5000;
-        const CELL_BATCH = 2000;
-
-        const now = new Date();
+        // Process in batches of 25K records.
+        // Each batch: 1 record INSERT (generate_series) + 1 cell INSERT (unnest).
+        // For 50K input: 2 iterations * 2 queries = 4 SQL queries per tRPC call.
+        const RECORD_BATCH = 10000;
+        const CELL_BATCH = 100000;
 
         for (let i = 0; i < count; i += RECORD_BATCH) {
           const batchSize = Math.min(RECORD_BATCH, count - i);
-          const ids = Array.from({ length: batchSize }, () => createId());
-          const orders = Array.from(
-            { length: batchSize },
-            (_, k) => startOrder + i + k,
-          );
-          const recParams: unknown[] = [];
-          const recPh: string[] = [];
-          for (let k = 0; k < batchSize; k++) {
-            recPh.push(`($${recParams.length + 1}, $${recParams.length + 2}, $${recParams.length + 3}, $${recParams.length + 4}, $${recParams.length + 5})`);
-            recParams.push(ids[k], input.tableId, orders[k], now, now);
-          }
-          await client.query(
-            `INSERT INTO "Record" (id, "tableId", "order", "createdAt", "updatedAt") VALUES ${recPh.join(", ")}`,
-            recParams,
+          const batchStartOrder = startOrder + i;
+          const batchEndOrder = batchStartOrder + batchSize - 1;
+
+          // Insert records: gen_random_uuid() for IDs, generate_series for orders.
+          // Zero JavaScript ID generation. One query for up to 25K records.
+          const recordResult = await client.query<{ id: string; order: number }>(
+            `INSERT INTO "Record" (id, "tableId", "order", "createdAt", "updatedAt")
+             SELECT gen_random_uuid()::text, $1::text, s, NOW(), NOW()
+             FROM generate_series($2::integer, $3::integer) AS s
+             RETURNING id, "order"`,
+            [input.tableId, batchStartOrder, batchEndOrder],
           );
 
-          const cells: { id: string; recordId: string; fieldId: string; value: string }[] = [];
-          for (let r = 0; r < batchSize; r++) {
-            const recordId = ids[r]!;
-            const rowIndex = i + r;
-            for (const field of fields) {
-              cells.push({
-                id: createId(),
-                recordId,
-                fieldId: field.id,
-                value: templateValueForField(field, rowIndex, templates),
-              });
+          // Build cell arrays for unnest — flat array indexing, no Map lookups
+          const totalCells = batchSize * numFields;
+          let rids: string[] = new Array(Math.min(totalCells, CELL_BATCH));
+          let fids: string[] = new Array(Math.min(totalCells, CELL_BATCH));
+          let vals: string[] = new Array(Math.min(totalCells, CELL_BATCH));
+          let pos = 0;
+
+          for (const rec of recordResult.rows) {
+            const rowIndex = rec.order - startOrder;
+            const tplIdx = rowIndex % TEMPLATE_SIZE;
+            const suffix = rowIndex >= TEMPLATE_SIZE ? ` ${rowIndex + 1}` : "";
+            for (let f = 0; f < numFields; f++) {
+              rids[pos] = rec.id;
+              fids[pos] = fieldIds[f]!;
+              const base = fieldTemplates[f]![tplIdx]!;
+              // For rows beyond template size, append index for uniqueness.
+              // NUMBER/DATE fields get numeric variation instead.
+              if (rowIndex < TEMPLATE_SIZE) {
+                vals[pos] = base;
+              } else {
+                const ftype = fields[f]!.type;
+                if (ftype === "NUMBER") {
+                  vals[pos] = String((parseInt(base, 10) || 0) + (rowIndex % 1000));
+                } else if (ftype === "DATE") {
+                  // Reuse base date string, vary day offset
+                  const d = new Date(base);
+                  d.setDate(d.getDate() + (rowIndex % 365));
+                  vals[pos] = d.toISOString().split("T")[0] ?? base;
+                } else {
+                  vals[pos] = base + suffix;
+                }
+              }
+              pos++;
+
+              if (pos >= CELL_BATCH) {
+                await client.query(
+                  `INSERT INTO "Cell" (id, "recordId", "fieldId", value, "createdAt", "updatedAt")
+                   SELECT gen_random_uuid()::text, u.rid, u.fid, u.val, NOW(), NOW()
+                   FROM unnest($1::text[], $2::text[], $3::text[]) AS u(rid, fid, val)`,
+                  [rids.slice(0, pos), fids.slice(0, pos), vals.slice(0, pos)],
+                );
+                // Reset for next chunk
+                rids = new Array(Math.min(totalCells - pos, CELL_BATCH));
+                fids = new Array(Math.min(totalCells - pos, CELL_BATCH));
+                vals = new Array(Math.min(totalCells - pos, CELL_BATCH));
+                pos = 0;
+              }
             }
           }
 
-          for (let c = 0; c < cells.length; c += CELL_BATCH) {
-            const cellBatch = cells.slice(c, c + CELL_BATCH);
-            const cellParams: unknown[] = [];
-            const cellPh: string[] = [];
-            for (const cell of cellBatch) {
-              cellPh.push(`($${cellParams.length + 1}, $${cellParams.length + 2}, $${cellParams.length + 3}, $${cellParams.length + 4}, $${cellParams.length + 5}, $${cellParams.length + 6})`);
-              cellParams.push(cell.id, cell.recordId, cell.fieldId, cell.value ?? "", now, now);
-            }
+          // Flush remaining cells
+          if (pos > 0) {
             await client.query(
-              `INSERT INTO "Cell" (id, "recordId", "fieldId", value, "createdAt", "updatedAt") VALUES ${cellPh.join(", ")}`,
-              cellParams,
+              `INSERT INTO "Cell" (id, "recordId", "fieldId", value, "createdAt", "updatedAt")
+               SELECT gen_random_uuid()::text, u.rid, u.fid, u.val, NOW(), NOW()
+               FROM unnest($1::text[], $2::text[], $3::text[]) AS u(rid, fid, val)`,
+              [rids.slice(0, pos), fids.slice(0, pos), vals.slice(0, pos)],
             );
           }
         }
@@ -644,6 +683,9 @@ export const tableRouter = createTRPCRouter({
       await pool.query(`DELETE FROM "Record" WHERE "tableId" = $1`, [
         input.tableId,
       ]);
+      // Reclaim disk space — critical for Neon's 512MB free tier limit
+      await pool.query(`VACUUM "Cell"`);
+      await pool.query(`VACUUM "Record"`);
       return { tableId: input.tableId };
     }),
 
@@ -770,17 +812,41 @@ export const tableRouter = createTRPCRouter({
       const records =
         rowIds.length === 0
           ? []
-          : await ctx.db.record.findMany({
-              where: { id: { in: rowIds } },
-              include: { cells: true },
-            });
+          : await (async () => {
+              // Single raw SQL query to get records + cells, avoiding Prisma ORM overhead
+              const placeholders = rowIds.map((_, i) => `$${i + 1}`).join(",");
+              const cellRows = await pool.query<{
+                id: string;
+                recordId: string;
+                fieldId: string;
+                value: string | null;
+              }>(
+                `SELECT id, "recordId", "fieldId", value FROM "Cell" WHERE "recordId" IN (${placeholders})`,
+                rowIds,
+              );
 
-      const recordMap = new Map(records.map((record) => [record.id, record]));
-      const orderedRecords = rowIds
-        .map((id) => recordMap.get(id))
-        .filter((record): record is NonNullable<typeof record> =>
-          Boolean(record),
-        );
+              // Group cells by recordId
+              const cellsByRecord = new Map<string, Array<{ id: string; recordId: string; fieldId: string; value: string | null }>>();
+              for (const cell of cellRows.rows) {
+                let arr = cellsByRecord.get(cell.recordId);
+                if (!arr) {
+                  arr = [];
+                  cellsByRecord.set(cell.recordId, arr);
+                }
+                arr.push(cell);
+              }
+
+              // Build record objects matching the expected shape
+              return pageRows.map((row) => ({
+                id: row.id,
+                tableId: input.tableId,
+                order: row.order,
+                cells: cellsByRecord.get(row.id) ?? [],
+              }));
+            })();
+
+      // Records are already in order from pageRows, no need to re-sort
+      const orderedRecords = records;
 
       const nextCursor =
         fromEnd ? null : hasMore && lastRow

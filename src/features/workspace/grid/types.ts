@@ -21,4 +21,4 @@ export type TableRowModel = {
 };
 
 export const PAGE_SIZE = 500;
-export const INITIAL_LOAD_SIZE = 1000;
+export const INITIAL_LOAD_SIZE = 500;

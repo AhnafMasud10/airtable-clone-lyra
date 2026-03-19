@@ -256,7 +256,7 @@ export const GridCursorSchema = z.union([
 export const GridQueryInputSchema = z.object({
   tableId: z.string().min(1),
   cursor: GridCursorSchema.optional().default(0),
-  limit: z.number().int().min(20).max(1000).default(200),
+  limit: z.number().int().min(20).max(2000).default(200),
   globalSearch: z.string().optional(),
   filters: z.array(GridFilterSchema).default([]),
   sorts: z.array(GridSortSchema).default([]),

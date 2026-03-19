@@ -88,6 +88,11 @@ export function BaseGridPageClient({
   >(new Map());
   const [isViewSwitching, setIsViewSwitching] = useState(false);
 
+  // Viewport-based fetching: cache pages fetched on scroll
+  const viewportCacheRef = useRef<Map<number, TableRowModel[]>>(new Map());
+  const fetchingPagesRef = useRef<Set<number>>(new Set());
+  const [viewportCacheVersion, setViewportCacheVersion] = useState(0);
+
   useEffect(() => {
     setSelectedTableId(initialTableId ?? initialTables[0]?.id ?? null);
   }, [initialTableId, initialTables]);
@@ -155,25 +160,23 @@ export function BaseGridPageClient({
     () => ({
       ...gridInput,
       cursor: { fromEnd: true as const },
-      limit: 1000,
+      limit: INITIAL_LOAD_SIZE,
     }),
     [gridInput],
   );
 
-  const gridQuery = api.table.getGridWindow.useInfiniteQuery(gridInput, {
+  const firstPageQuery = api.table.getGridWindow.useQuery(gridInput, {
     enabled: Boolean(selectedTableId),
-    initialCursor: 0,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 
-  const serverTotalFromFirstPage = gridQuery.data?.pages[0]?.total ?? 0;
+  const serverTotalFromFirstPage = firstPageQuery.data?.total ?? 0;
   const lastRowsQuery = api.table.getGridWindow.useQuery(lastRowsInput, {
     enabled:
       Boolean(selectedTableId) &&
-      serverTotalFromFirstPage > 1000 &&
-      !gridQuery.isPlaceholderData,
+      serverTotalFromFirstPage > INITIAL_LOAD_SIZE &&
+      !firstPageQuery.isPlaceholderData,
   });
 
   // ── Eager prefetch: warm cache for ALL tables on mount ─────────────
@@ -184,7 +187,7 @@ export function BaseGridPageClient({
     prefetchedRef.current = true;
     for (const t of tables) {
       if (t.id === selectedTableId) continue;
-      void utils.table.getGridWindow.prefetchInfinite({
+      void utils.table.getGridWindow.prefetch({
         tableId: t.id,
         limit: PAGE_SIZE,
         globalSearch: "",
@@ -336,29 +339,25 @@ export function BaseGridPageClient({
 
   const clearTableData = api.table.clearData.useMutation({
     onMutate: async () => {
-      // Optimistically clear the grid data
       if (!selectedTableId) return {};
       await utils.table.getGridWindow.cancel(gridInput);
-      const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
-      utils.table.getGridWindow.setInfiniteData(gridInput, (old) => {
+      const previousGrid = utils.table.getGridWindow.getData(gridInput);
+      utils.table.getGridWindow.setData(gridInput, (old) => {
         if (!old) return old;
-        return {
-          ...old,
-          pages: old.pages.map((page, i) =>
-            i === 0 ? { ...page, rows: [], total: 0 } : page,
-          ),
-        };
+        return { ...old, rows: [], total: 0 };
       });
       return { previousGrid };
     },
     onError: (_err, _input, context) => {
       if (context?.previousGrid) {
-        utils.table.getGridWindow.setInfiniteData(gridInput, context.previousGrid);
+        utils.table.getGridWindow.setData(gridInput, context.previousGrid);
       }
     },
     onSettled: async () => {
       if (!selectedTableId) return;
-      await utils.table.getGridWindow.invalidate(gridInput);
+      viewportCacheRef.current.clear();
+      fetchingPagesRef.current.clear();
+      await utils.table.getGridWindow.invalidate();
     },
   });
 
@@ -367,36 +366,32 @@ export function BaseGridPageClient({
     inserted: number;
     total: number;
   } | null>(null);
+  // Snapshot of serverTotal before bulk insert starts, so we can show accurate count
+  const preBulkTotalRef = useRef(0);
 
   const reorderFields = api.field.reorder.useMutation({
     onMutate: async ({ fieldIds }) => {
-      const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
+      const previousGrid = utils.table.getGridWindow.getData(gridInput);
       void utils.table.getGridWindow.cancel(gridInput);
 
-      // Optimistically reorder fields in the cache
-      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
+      utils.table.getGridWindow.setData(gridInput, (current) => {
         if (!current) return current;
-        return {
-          ...current,
-          pages: current.pages.map((page) => {
-            const fieldMap = new Map(page.fields.map((f) => [f.id, f]));
-            const reorderedFields = fieldIds
-              .map((id) => fieldMap.get(id))
-              .filter((f): f is NonNullable<typeof f> => Boolean(f));
-            return { ...page, fields: reorderedFields };
-          }),
-        };
+        const fieldMap = new Map(current.fields.map((f) => [f.id, f]));
+        const reorderedFields = fieldIds
+          .map((id) => fieldMap.get(id))
+          .filter((f): f is NonNullable<typeof f> => Boolean(f));
+        return { ...current, fields: reorderedFields };
       });
 
       return { previousGrid };
     },
     onError: (_error, _input, context) => {
       if (!context?.previousGrid) return;
-      utils.table.getGridWindow.setInfiniteData(gridInput, context.previousGrid);
+      utils.table.getGridWindow.setData(gridInput, context.previousGrid);
     },
     onSettled: async () => {
       if (!selectedTableId) return;
-      await utils.table.getGridWindow.invalidate(gridInput);
+      await utils.table.getGridWindow.invalidate();
     },
   });
 
@@ -466,7 +461,7 @@ export function BaseGridPageClient({
     onMutate: async (input) => {
       if (!selectedTableId) return {};
 
-      const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
+      const previousGrid = utils.table.getGridWindow.getData(gridInput);
       void utils.table.getGridWindow.cancel(gridInput);
 
       const optimisticField = {
@@ -477,72 +472,61 @@ export function BaseGridPageClient({
         tableId: selectedTableId,
       };
 
-      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
+      utils.table.getGridWindow.setData(gridInput, (current) => {
         if (!current) return current;
-        return {
-          ...current,
-          pages: current.pages.map((page) => {
-            const newFields = [...page.fields, optimisticField];
-            const newRows = page.rows.map((row) => ({
-              ...row,
-              cells: [
-                ...row.cells,
-                {
-                  id: `optimistic-${row.id}-${optimisticField.id}`,
-                  recordId: row.id,
-                  fieldId: optimisticField.id,
-                  value: "",
-                },
-              ],
-            }));
-            return {
-              ...page,
-              fields: newFields,
-              rows: newRows,
-            };
-          }),
-        };
+        const newFields = [...current.fields, optimisticField];
+        const newRows = current.rows.map((row) => ({
+          ...row,
+          cells: [
+            ...row.cells,
+            {
+              id: `optimistic-${row.id}-${optimisticField.id}`,
+              recordId: row.id,
+              fieldId: optimisticField.id,
+              value: "",
+            },
+          ],
+        }));
+        return { ...current, fields: newFields, rows: newRows };
       });
 
       return { previousGrid };
     },
     onError: (_error, _input, context) => {
       if (!context?.previousGrid) return;
-      utils.table.getGridWindow.setInfiniteData(
-        gridInput,
-        context.previousGrid,
-      );
+      utils.table.getGridWindow.setData(gridInput, context.previousGrid);
     },
     onSettled: async () => {
       if (!selectedTableId) return;
-      await utils.table.getGridWindow.invalidate(gridInput);
+      viewportCacheRef.current.clear();
+      fetchingPagesRef.current.clear();
+      await utils.table.getGridWindow.invalidate();
     },
   });
 
   const deleteField = api.field.delete.useMutation({
     onSuccess: async () => {
       if (!selectedTableId) return;
-      await utils.table.getGridWindow.invalidate(gridInput);
+      viewportCacheRef.current.clear();
+      fetchingPagesRef.current.clear();
+      await utils.table.getGridWindow.invalidate();
     },
   });
 
   const updateField = api.field.update.useMutation({
     onMutate: async (input) => {
-      const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
+      const previousGrid = utils.table.getGridWindow.getData(gridInput);
       void utils.table.getGridWindow.cancel(gridInput);
 
-      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
+      utils.table.getGridWindow.setData(gridInput, (current) => {
         if (!current) return current;
         return {
           ...current,
-          pages: current.pages.map((page) => ({
-            ...page,
-            fields: page.fields.map((f) =>
-              f.id === input.fieldId
-                ? { ...f, ...(input.name ? { name: input.name } : {}), ...(input.type ? { type: input.type } : {}) }
-                : f,
-            ),
-          })),
+          fields: current.fields.map((f) =>
+            f.id === input.fieldId
+              ? { ...f, ...(input.name ? { name: input.name } : {}), ...(input.type ? { type: input.type } : {}) }
+              : f,
+          ),
         };
       });
 
@@ -550,11 +534,11 @@ export function BaseGridPageClient({
     },
     onError: (_error, _input, context) => {
       if (!context?.previousGrid) return;
-      utils.table.getGridWindow.setInfiniteData(gridInput, context.previousGrid);
+      utils.table.getGridWindow.setData(gridInput, context.previousGrid);
     },
     onSettled: async () => {
       if (!selectedTableId) return;
-      await utils.table.getGridWindow.invalidate(gridInput);
+      await utils.table.getGridWindow.invalidate();
     },
   });
 
@@ -562,18 +546,17 @@ export function BaseGridPageClient({
     onMutate: async (input) => {
       if (!selectedTableId) return {};
 
-      const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
+      const previousGrid = utils.table.getGridWindow.getData(gridInput);
       void utils.table.getGridWindow.cancel(gridInput);
 
       const tempId = `optimistic-row-${Date.now()}`;
-      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
-        if (!current || current.pages.length === 0) return current;
-        const firstPage = current.pages[0]!;
+      utils.table.getGridWindow.setData(gridInput, (current) => {
+        if (!current) return current;
         const optimisticRow = {
           id: tempId,
           order: input.order ?? 0,
           tableId: selectedTableId,
-          cells: firstPage.fields.map((f) => ({
+          cells: current.fields.map((f) => ({
             id: `optimistic-${tempId}-${f.id}`,
             recordId: tempId,
             fieldId: f.id,
@@ -581,18 +564,10 @@ export function BaseGridPageClient({
           })),
         };
 
-        const newRows = [...firstPage.rows, optimisticRow];
-        const newTotal = (firstPage.total ?? 0) + 1;
         return {
           ...current,
-          pages: [
-            {
-              ...firstPage,
-              rows: newRows,
-              total: newTotal,
-            },
-            ...current.pages.slice(1),
-          ],
+          rows: [...current.rows, optimisticRow],
+          total: (current.total ?? 0) + 1,
         };
       });
 
@@ -606,37 +581,32 @@ export function BaseGridPageClient({
 
       const cellsToPersist = pending ?? [];
 
-      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
-        if (!current || current.pages.length === 0) return current;
+      utils.table.getGridWindow.setData(gridInput, (current) => {
+        if (!current) return current;
+        const optimisticRow = current.rows.find((r) => r.id === context.tempId);
+        if (!optimisticRow) return current;
+
+        const mergedCells = optimisticRow.cells.map((c) => {
+          const pendingUpdate = pending?.find((p) => p.fieldId === c.fieldId);
+          const value = pendingUpdate?.value ?? c.value;
+          return {
+            id: `cell-${createdRecord.id}-${c.fieldId}`,
+            recordId: createdRecord.id,
+            fieldId: c.fieldId,
+            value,
+          };
+        });
+
+        const realRow = {
+          ...createdRecord,
+          cells: mergedCells,
+        };
+
         return {
           ...current,
-          pages: current.pages.map((page) => {
-            const optimisticRow = page.rows.find((r) => r.id === context.tempId);
-            if (!optimisticRow) return page;
-
-            const mergedCells = optimisticRow.cells.map((c) => {
-              const pendingUpdate = pending?.find((p) => p.fieldId === c.fieldId);
-              const value = pendingUpdate?.value ?? c.value;
-              return {
-                id: `cell-${createdRecord.id}-${c.fieldId}`,
-                recordId: createdRecord.id,
-                fieldId: c.fieldId,
-                value,
-              };
-            });
-
-            const realRow = {
-              ...createdRecord,
-              cells: mergedCells,
-            };
-
-            return {
-              ...page,
-              rows: page.rows.map((r) =>
-                r.id === context.tempId ? realRow : r,
-              ),
-            };
-          }),
+          rows: current.rows.map((r) =>
+            r.id === context.tempId ? realRow : r,
+          ),
         };
       });
 
@@ -650,17 +620,14 @@ export function BaseGridPageClient({
     },
     onError: (_error, _input, context) => {
       if (!context?.previousGrid) return;
-      utils.table.getGridWindow.setInfiniteData(
-        gridInput,
-        context.previousGrid,
-      );
+      utils.table.getGridWindow.setData(gridInput, context.previousGrid);
       if (context?.tempId) {
         pendingCellUpdatesRef.current.delete(context.tempId);
       }
     },
     onSettled: async (_data, error) => {
       if (error && selectedTableId) {
-        await utils.table.getGridWindow.invalidate(gridInput);
+        await utils.table.getGridWindow.invalidate();
       }
     },
   });
@@ -669,86 +636,77 @@ export function BaseGridPageClient({
     onMutate: async (input) => {
       if (!selectedTableId) return {};
 
-      const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
+      const previousGrid = utils.table.getGridWindow.getData(gridInput);
       void utils.table.getGridWindow.cancel(gridInput);
 
-      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
+      utils.table.getGridWindow.setData(gridInput, (current) => {
         if (!current) return current;
         return {
           ...current,
-          pages: current.pages.map((page) => ({
-            ...page,
-            rows: page.rows.map((row) => {
-              if (row.id !== input.recordId) return row;
+          rows: current.rows.map((row) => {
+            if (row.id !== input.recordId) return row;
 
-              const existingCellIndex = row.cells.findIndex(
-                (cell) => cell.fieldId === input.fieldId,
-              );
-              if (existingCellIndex === -1) {
-                return {
-                  ...row,
-                  cells: [
-                    ...row.cells,
-                    {
-                      id: `optimistic-${input.recordId}-${input.fieldId}`,
-                      recordId: input.recordId,
-                      fieldId: input.fieldId,
-                      value: input.value,
-                    },
-                  ],
-                };
-              }
-
-              const nextCells = [...row.cells];
-              const currentCell = nextCells[existingCellIndex];
-              if (!currentCell) return row;
-              nextCells[existingCellIndex] = {
-                ...currentCell,
-                value: input.value,
+            const existingCellIndex = row.cells.findIndex(
+              (cell) => cell.fieldId === input.fieldId,
+            );
+            if (existingCellIndex === -1) {
+              return {
+                ...row,
+                cells: [
+                  ...row.cells,
+                  {
+                    id: `optimistic-${input.recordId}-${input.fieldId}`,
+                    recordId: input.recordId,
+                    fieldId: input.fieldId,
+                    value: input.value,
+                  },
+                ],
               };
-              return { ...row, cells: nextCells };
-            }),
-          })),
+            }
+
+            const nextCells = [...row.cells];
+            const currentCell = nextCells[existingCellIndex];
+            if (!currentCell) return row;
+            nextCells[existingCellIndex] = {
+              ...currentCell,
+              value: input.value,
+            };
+            return { ...row, cells: nextCells };
+          }),
         };
       });
 
       return { previousGrid };
     },
     onSuccess: (serverCell) => {
-      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
+      utils.table.getGridWindow.setData(gridInput, (current) => {
         if (!current) return current;
         return {
           ...current,
-          pages: current.pages.map((page) => ({
-            ...page,
-            rows: page.rows.map((row) => {
-              if (row.id !== serverCell.recordId) return row;
+          rows: current.rows.map((row) => {
+            if (row.id !== serverCell.recordId) return row;
 
-              const idx = row.cells.findIndex(
-                (c) => c.fieldId === serverCell.fieldId,
-              );
-              if (idx === -1) {
-                return {
-                  ...row,
-                  cells: [...row.cells, serverCell],
-                };
-              }
+            const idx = row.cells.findIndex(
+              (c) => c.fieldId === serverCell.fieldId,
+            );
+            if (idx === -1) {
+              return {
+                ...row,
+                cells: [...row.cells, serverCell],
+              };
+            }
 
-              const next = [...row.cells];
-              next[idx] = serverCell;
-              return { ...row, cells: next };
-            }),
-          })),
+            const next = [...row.cells];
+            next[idx] = serverCell;
+            return { ...row, cells: next };
+          }),
         };
       });
     },
     onError: (_error, _input, context) => {
       if (!context?.previousGrid) return;
-      utils.table.getGridWindow.setInfiniteData(
-        gridInput,
-        context.previousGrid,
-      );
-      void utils.table.getGridWindow.invalidate(gridInput);
+      utils.table.getGridWindow.setData(gridInput, context.previousGrid);
+      void utils.table.getGridWindow.invalidate();
     },
   });
 
@@ -764,22 +722,17 @@ export function BaseGridPageClient({
 
   const bulkDeleteRecords = api.record.bulkDelete.useMutation({
     onMutate: async (input) => {
-      const previousGrid = utils.table.getGridWindow.getInfiniteData(gridInput);
+      const previousGrid = utils.table.getGridWindow.getData(gridInput);
       void utils.table.getGridWindow.cancel(gridInput);
 
       const idSet = new Set(input.recordIds);
-      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
+      utils.table.getGridWindow.setData(gridInput, (current) => {
         if (!current) return current;
+        const removedCount = current.rows.filter((row) => idSet.has(row.id)).length;
         return {
           ...current,
-          pages: current.pages.map((page) => ({
-            ...page,
-            rows: page.rows.filter((row) => !idSet.has(row.id)),
-            total:
-              page.total -
-              input.recordIds.filter((id) => page.rows.some((r) => r.id === id))
-                .length,
-          })),
+          rows: current.rows.filter((row) => !idSet.has(row.id)),
+          total: current.total - removedCount,
         };
       });
 
@@ -787,14 +740,13 @@ export function BaseGridPageClient({
     },
     onError: (_error, _input, context) => {
       if (!context?.previousGrid) return;
-      utils.table.getGridWindow.setInfiniteData(
-        gridInput,
-        context.previousGrid,
-      );
+      utils.table.getGridWindow.setData(gridInput, context.previousGrid);
     },
     onSettled: async () => {
       if (!selectedTableId) return;
-      await utils.table.getGridWindow.invalidate(gridInput);
+      viewportCacheRef.current.clear();
+      fetchingPagesRef.current.clear();
+      await utils.table.getGridWindow.invalidate();
       setSelectedRowIds(new Set());
     },
   });
@@ -882,49 +834,88 @@ export function BaseGridPageClient({
 
   // ── Clear view-switching spinner once fresh data arrives ─────────────
   useEffect(() => {
-    if (isViewSwitching && !gridQuery.isFetching) {
+    if (isViewSwitching && !firstPageQuery.isFetching) {
       setIsViewSwitching(false);
     }
-  }, [isViewSwitching, gridQuery.isFetching]);
+  }, [isViewSwitching, firstPageQuery.isFetching]);
+
+  // ── Clear viewport cache when query inputs change ──────────────────
+  const prevGridInputRef = useRef(gridInput);
+  useEffect(() => {
+    if (prevGridInputRef.current !== gridInput) {
+      prevGridInputRef.current = gridInput;
+      viewportCacheRef.current.clear();
+      fetchingPagesRef.current.clear();
+      setViewportCacheVersion(0);
+    }
+  }, [gridInput]);
 
   // ── Derived data ─────────────────────────────────────────────────────
 
   const allFieldsFromGrid: GridField[] = useMemo(
-    () => gridQuery.data?.pages[0]?.fields ?? [],
-    [gridQuery.data],
+    () => firstPageQuery.data?.fields ?? [],
+    [firstPageQuery.data],
   );
   const fields: GridField[] = allFieldsFromGrid.filter(
     (f) => !hiddenFieldIds.includes(f.id),
   );
-  const serverTotal = gridQuery.data?.pages[0]?.total ?? 0;
+  const serverTotal = firstPageQuery.data?.total ?? 0;
 
-  const rows = useMemo(() => {
-    const fromPages = gridQuery.data?.pages.flatMap((page) => page.rows) ?? [];
-    const lastRows = lastRowsQuery.data?.rows ?? [];
-    const total = Math.max(serverTotal, fromPages.length + lastRows.length);
-    if (total === 0) return fromPages;
-    if (lastRows.length === 0) return fromPages;
-
-    const result: (typeof fromPages[0] | { id: string; order: number; cells: { fieldId: string; value: string | null }[]; _skeleton: true })[] =
-      Array.from({ length: total }, (_, i) => {
-        if (i < fromPages.length) return fromPages[i]!;
-        if (i >= total - lastRows.length)
-          return lastRows[i - (total - lastRows.length)]!;
-        return {
-          id: `skeleton-${i}`,
-          tableId: "",
-          order: i,
-          cells: [],
-          _skeleton: true as const,
-        };
-      });
-    return result;
-  }, [gridQuery.data, lastRowsQuery.data, serverTotal]);
-  // During bulk insert, use the higher of server total or progress count
-  // so the virtualizer shows the full scroll height immediately
+  // During bulk insert, show the final target total so the scrollbar
+  // extends to full height immediately (enables scroll-to-bottom).
   const totalCount = bulkProgress
-    ? Math.max(serverTotal, bulkProgress.inserted)
+    ? Math.max(serverTotal, preBulkTotalRef.current + bulkProgress.total)
     : serverTotal;
+
+  // Build sparse Map<rowIndex, TableRowModel> from first page + last page + viewport cache
+  const rowLookup = useMemo(() => {
+    const map = new Map<number, TableRowModel>();
+
+    // First page rows (offset 0)
+    const firstRows = firstPageQuery.data?.rows ?? [];
+    for (let i = 0; i < firstRows.length; i++) {
+      const row = firstRows[i]!;
+      map.set(i, {
+        id: row.id,
+        order: row.order,
+        cellsByField: Object.fromEntries(
+          row.cells.map((cell) => [cell.fieldId, cell.value ?? ""]),
+        ),
+      });
+    }
+
+    // Last page rows (from end)
+    const lastRows = lastRowsQuery.data?.rows ?? [];
+    if (lastRows.length > 0 && serverTotal > 0) {
+      const lastPageStart = serverTotal - lastRows.length;
+      for (let i = 0; i < lastRows.length; i++) {
+        const row = lastRows[i]!;
+        const idx = lastPageStart + i;
+        if (!map.has(idx)) {
+          map.set(idx, {
+            id: row.id,
+            order: row.order,
+            cellsByField: Object.fromEntries(
+              row.cells.map((cell) => [cell.fieldId, cell.value ?? ""]),
+            ),
+          });
+        }
+      }
+    }
+
+    // Viewport-cached pages
+    for (const [offset, models] of viewportCacheRef.current) {
+      for (let i = 0; i < models.length; i++) {
+        const idx = offset + i;
+        if (!map.has(idx)) {
+          map.set(idx, models[i]!);
+        }
+      }
+    }
+
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstPageQuery.data, lastRowsQuery.data, serverTotal, viewportCacheVersion]);
 
   // Set of field IDs that have an active (complete) filter applied
   const filteredFieldIds = useMemo(() => {
@@ -934,23 +925,6 @@ export function BaseGridPageClient({
       (f.value !== undefined && String(f.value) !== "");
     return new Set(filters.filter(isComplete).map((f) => f.fieldId));
   }, [filters]);
-
-  const rowModels: TableRowModel[] = useMemo(
-    () =>
-      rows.map((row) => {
-        const base = {
-          id: row.id,
-          order: row.order,
-          cellsByField: Object.fromEntries(
-            row.cells.map((cell) => [cell.fieldId, cell.value ?? ""]),
-          ),
-        };
-        return "_skeleton" in row && row._skeleton
-          ? { ...base, _skeleton: true }
-          : base;
-      }),
-    [rows],
-  );
 
   const selectedTableName =
     (tablesQuery.data ?? []).find((t) => t.id === selectedTableId)?.name ??
@@ -983,6 +957,8 @@ export function BaseGridPageClient({
     (tableId: string) => {
       suppressAutoSaveRef.current = true;
       viewConfigCacheRef.current.clear();
+      viewportCacheRef.current.clear();
+      fetchingPagesRef.current.clear();
       setSelectedTableId(tableId);
       setSelectedViewId(null);
       setFilters([]);
@@ -995,7 +971,6 @@ export function BaseGridPageClient({
         "",
         `/base/${baseId}/table/${tableId}`,
       );
-      // The auto-select-first-view effect will fire and pick the first view
       requestAnimationFrame(() => {
         suppressAutoSaveRef.current = false;
       });
@@ -1006,7 +981,7 @@ export function BaseGridPageClient({
   const handlePrefetchTable = useCallback(
     (tableId: string) => {
       if (tableId === selectedTableId) return;
-      void utils.table.getGridWindow.prefetchInfinite({
+      void utils.table.getGridWindow.prefetch({
         tableId,
         limit: PAGE_SIZE,
         globalSearch: "",
@@ -1084,45 +1059,58 @@ export function BaseGridPageClient({
   const handleBulkInsert = useCallback(async () => {
     if (!selectedTableId || bulkProgress) return;
     const TOTAL = 100000;
-    const BATCH = 5000;
-    const CONCURRENCY = 6;
+    const BATCH = 10000;
+    const CONCURRENCY = 3;
 
+    preBulkTotalRef.current = serverTotal;
     setBulkProgress({ inserted: 0, total: TOTAL });
 
-    let nextStartOrder: number | undefined;
-    let inserted = 0;
-
-    while (inserted < TOTAL) {
-      const batchCount =
-        nextStartOrder === undefined
-          ? 1
-          : Math.min(CONCURRENCY, Math.ceil((TOTAL - inserted) / BATCH));
-
-      const results = await Promise.all(
-        Array.from({ length: batchCount }, (_, i) => {
-          const offset = inserted + i * BATCH;
-          const count = Math.min(BATCH, TOTAL - offset);
-          return bulkInsertRows.mutateAsync({
-            tableId: selectedTableId,
-            count,
-            startOrder:
-              nextStartOrder !== undefined ? nextStartOrder + i * BATCH : undefined,
-          });
-        }),
-      );
-
-      if (results[0]?.startOrder !== undefined) {
-        nextStartOrder = results[0].startOrder + results[0].inserted;
-      }
-      const added = results.reduce((sum, r) => sum + r.inserted, 0);
-      inserted += added;
+    try {
+      // First batch: let server compute startOrder
+      const first = await bulkInsertRows.mutateAsync({
+        tableId: selectedTableId,
+        count: BATCH,
+      });
+      let inserted = first.inserted;
+      let nextStartOrder = (first.startOrder ?? 0) + first.inserted;
       setBulkProgress({ inserted, total: TOTAL });
-      void utils.table.getGridWindow.invalidate(gridInput);
-    }
 
-    setBulkProgress(null);
-    await utils.table.getGridWindow.invalidate(gridInput);
-  }, [selectedTableId, bulkProgress, bulkInsertRows, utils, gridInput]);
+      // Concurrent batches — no mid-loop invalidation to avoid stack overflow
+      while (inserted < TOTAL) {
+        const remaining = TOTAL - inserted;
+        const batchCount = Math.min(CONCURRENCY, Math.ceil(remaining / BATCH));
+
+        const results = await Promise.allSettled(
+          Array.from({ length: batchCount }, (_, i) => {
+            const count = Math.min(BATCH, TOTAL - (inserted + i * BATCH));
+            if (count <= 0) return Promise.resolve({ inserted: 0, startOrder: 0 });
+            return bulkInsertRows.mutateAsync({
+              tableId: selectedTableId,
+              count,
+              startOrder: nextStartOrder + i * BATCH,
+            });
+          }),
+        );
+
+        let added = 0;
+        for (const r of results) {
+          if (r.status === "fulfilled") added += r.value.inserted;
+        }
+        inserted += added;
+        nextStartOrder += added;
+        setBulkProgress({ inserted, total: TOTAL });
+
+        if (added === 0) break;
+      }
+    } catch (err) {
+      console.error("Bulk insert error:", err);
+    } finally {
+      setBulkProgress(null);
+      viewportCacheRef.current.clear();
+      fetchingPagesRef.current.clear();
+      await utils.table.getGridWindow.invalidate();
+    }
+  }, [selectedTableId, bulkProgress, bulkInsertRows, utils, serverTotal]);
 
   const handleCreateView = useCallback(
     (type: string, name: string) => {
@@ -1273,8 +1261,8 @@ export function BaseGridPageClient({
 
   const handleAddRow = useCallback(() => {
     if (!selectedTableId) return;
-    createRecord.mutate({ tableId: selectedTableId, order: rows.length });
-  }, [selectedTableId, createRecord, rows.length]);
+    createRecord.mutate({ tableId: selectedTableId, order: totalCount });
+  }, [selectedTableId, createRecord, totalCount]);
 
   const handleRowContextMenu = useCallback(
     (e: React.MouseEvent, rowId: string) => {
@@ -1530,36 +1518,33 @@ export function BaseGridPageClient({
       }
       pendingCellUpdatesRef.current.set(editingCell.rowId, pending);
 
-      utils.table.getGridWindow.setInfiniteData(gridInput, (current) => {
+      utils.table.getGridWindow.setData(gridInput, (current) => {
         if (!current) return current;
         return {
           ...current,
-          pages: current.pages.map((page) => ({
-            ...page,
-            rows: page.rows.map((row) => {
-              if (row.id !== editingCell.rowId) return row;
-              const existingIdx = row.cells.findIndex(
-                (c) => c.fieldId === editingCell.fieldId,
-              );
-              const nextCells =
-                existingIdx >= 0
-                  ? row.cells.map((c, i) =>
-                      i === existingIdx
-                        ? { ...c, value: editingCell.value }
-                        : c,
-                    )
-                  : [
-                      ...row.cells,
-                      {
-                        id: `optimistic-${editingCell.rowId}-${editingCell.fieldId}`,
-                        recordId: editingCell.rowId,
-                        fieldId: editingCell.fieldId,
-                        value: editingCell.value,
-                      },
-                    ];
-              return { ...row, cells: nextCells };
-            }),
-          })),
+          rows: current.rows.map((row) => {
+            if (row.id !== editingCell.rowId) return row;
+            const existingIdx = row.cells.findIndex(
+              (c) => c.fieldId === editingCell.fieldId,
+            );
+            const nextCells =
+              existingIdx >= 0
+                ? row.cells.map((c, i) =>
+                    i === existingIdx
+                      ? { ...c, value: editingCell.value }
+                      : c,
+                  )
+                : [
+                    ...row.cells,
+                    {
+                      id: `optimistic-${editingCell.rowId}-${editingCell.fieldId}`,
+                      recordId: editingCell.rowId,
+                      fieldId: editingCell.fieldId,
+                      value: editingCell.value,
+                    },
+                  ];
+            return { ...row, cells: nextCells };
+          }),
         };
       });
     } else {
@@ -1599,13 +1584,71 @@ export function BaseGridPageClient({
     bulkDeleteRecords.mutate({ recordIds: ids });
   }, [selectedRowIds, bulkDeleteRecords]);
 
-  const handleFetchNextPage = useCallback(() => {
-    gridQuery.fetchNextPage().catch(() => null);
-  }, [gridQuery]);
-
   const handleRetry = useCallback(() => {
-    gridQuery.refetch().catch(() => null);
-  }, [gridQuery]);
+    firstPageQuery.refetch().catch(() => null);
+  }, [firstPageQuery]);
+
+  // Viewport-based fetching: when visible range changes, fetch missing pages
+  const handleVisibleRangeChange = useCallback(
+    (start: number, end: number) => {
+      if (!selectedTableId) return;
+      const firstPageEnd = firstPageQuery.data?.rows.length ?? 0;
+      const lastPageLen = lastRowsQuery.data?.rows.length ?? 0;
+      const lastPageStart = lastPageLen > 0 ? serverTotal - lastPageLen : serverTotal;
+
+      // Compute which PAGE_SIZE-aligned pages cover the visible range
+      const startPage = Math.floor(start / PAGE_SIZE) * PAGE_SIZE;
+      const endPage = Math.floor(end / PAGE_SIZE) * PAGE_SIZE;
+
+      for (let offset = startPage; offset <= endPage; offset += PAGE_SIZE) {
+        // Skip if fully covered by first page or last page
+        if (offset + PAGE_SIZE <= firstPageEnd) continue;
+        if (offset >= lastPageStart && lastPageLen > 0) continue;
+        // Skip if already fetched or in-flight
+        if (fetchingPagesRef.current.has(offset)) continue;
+        if (viewportCacheRef.current.has(offset)) continue;
+
+        fetchingPagesRef.current.add(offset);
+
+        void utils.table.getGridWindow
+          .fetch({
+            tableId: selectedTableId,
+            cursor: offset,
+            limit: PAGE_SIZE,
+            globalSearch,
+            filters,
+            sorts,
+            hiddenFieldIds,
+          })
+          .then((data) => {
+            const models: TableRowModel[] = data.rows.map((row) => ({
+              id: row.id,
+              order: row.order,
+              cellsByField: Object.fromEntries(
+                row.cells.map((cell) => [cell.fieldId, cell.value ?? ""]),
+              ),
+            }));
+            viewportCacheRef.current.set(offset, models);
+            setViewportCacheVersion((v) => v + 1);
+          })
+          .catch(() => {
+            // Allow retry on next scroll
+            fetchingPagesRef.current.delete(offset);
+          });
+      }
+    },
+    [
+      selectedTableId,
+      firstPageQuery.data,
+      lastRowsQuery.data,
+      serverTotal,
+      globalSearch,
+      filters,
+      sorts,
+      hiddenFieldIds,
+      utils,
+    ],
+  );
 
   const handleToggleField = useCallback((fieldId: string) => {
     setHiddenFieldIds((prev) =>
@@ -1832,19 +1875,11 @@ export function BaseGridPageClient({
 
               <GridTable
                 fields={fields}
-                rowModels={rowModels}
-                hasNextPage={gridQuery.hasNextPage ?? false}
-                isFetchingNextPage={gridQuery.isFetchingNextPage}
-                loadedFromStartCount={
-                  gridQuery.data?.pages.reduce(
-                    (sum, p) => sum + p.rows.length,
-                    0,
-                  )
-                }
-                isLoading={gridQuery.isLoading}
-                isPlaceholderData={gridQuery.isPlaceholderData}
-                isError={gridQuery.isError}
+                rowLookup={rowLookup}
                 totalCount={totalCount}
+                isLoading={firstPageQuery.isLoading}
+                isPlaceholderData={firstPageQuery.isPlaceholderData}
+                isError={firstPageQuery.isError}
                 editingCell={editingCell}
                 selectedRowIds={selectedRowIds}
                 onToggleRow={handleToggleRow}
@@ -1853,7 +1888,6 @@ export function BaseGridPageClient({
                 onChangeEdit={handleChangeEdit}
                 onCommitEdit={handleCommitEdit}
                 onCancelEdit={handleCancelEdit}
-                onFetchNextPage={handleFetchNextPage}
                 onRetry={handleRetry}
                 onCreateField={handleCreateField}
                 onReorderFields={handleReorderFields}
@@ -1867,6 +1901,7 @@ export function BaseGridPageClient({
                 globalSearch={globalSearch}
                 activeSearchMatchIndex={activeSearchMatchIndex}
                 onSearchMatchesChange={handleSearchMatchesChange}
+                onVisibleRangeChange={handleVisibleRangeChange}
               />
               {contextMenu && (
                 <RowContextMenu

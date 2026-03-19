@@ -1,10 +1,5 @@
 "use client";
 
-import {
-  createColumnHelper,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   type KeyboardEvent,
@@ -204,14 +199,12 @@ function FieldTypeIcon({ type, title }: Readonly<{ type: string; title?: string 
 
 type GridTableProps = Readonly<{
   fields: GridField[];
-  rowModels: TableRowModel[];
-  hasNextPage: boolean;
-  isFetchingNextPage: boolean;
-  loadedFromStartCount?: number;
+  /** Sparse lookup: virtual-row-index → row data. Missing = skeleton. */
+  rowLookup: Map<number, TableRowModel>;
+  totalCount: number;
   isLoading: boolean;
   isPlaceholderData: boolean;
   isError: boolean;
-  totalCount: number;
   editingCell: { rowId: string; fieldId: string; value: string } | null;
   selectedRowIds: Set<string>;
   onToggleRow: (rowId: string) => void;
@@ -220,7 +213,6 @@ type GridTableProps = Readonly<{
   onChangeEdit: (value: string) => void;
   onCommitEdit: () => void;
   onCancelEdit: () => void;
-  onFetchNextPage: () => void;
   onRetry: () => void;
   onCreateField: (
     name: string,
@@ -242,18 +234,17 @@ type GridTableProps = Readonly<{
   globalSearch?: string;
   activeSearchMatchIndex?: number;
   onSearchMatchesChange?: (count: number) => void;
+  /** Called when the visible row range changes so the parent can fetch data. */
+  onVisibleRangeChange?: (start: number, end: number) => void;
 }>;
 
 export function GridTable({
   fields,
-  rowModels,
-  hasNextPage,
-  isFetchingNextPage,
-  loadedFromStartCount,
+  rowLookup,
+  totalCount,
   isLoading,
   isPlaceholderData,
   isError,
-  totalCount,
   editingCell,
   selectedRowIds,
   onToggleRow,
@@ -262,7 +253,6 @@ export function GridTable({
   onChangeEdit,
   onCommitEdit,
   onCancelEdit,
-  onFetchNextPage,
   onRetry,
   onCreateField,
   onAddRow,
@@ -276,11 +266,11 @@ export function GridTable({
   globalSearch,
   activeSearchMatchIndex = 0,
   onSearchMatchesChange,
+  onVisibleRangeChange,
 }: GridTableProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const [showCreateFieldPanel, setShowCreateFieldPanel] = useState(false);
-  const columnHelper = createColumnHelper<TableRowModel>();
 
   // Column widths: fieldId -> width in px (overrides defaults)
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
@@ -325,7 +315,7 @@ export function GridTable({
   const [dragCol, setDragCol] = useState<{
     fieldIndex: number;
     mouseX: number;
-    grabOffsetX: number; // mouseX minus column's left edge at drag start
+    grabOffsetX: number;
     wrapperTop: number;
     wrapperHeight: number;
   } | null>(null);
@@ -335,7 +325,6 @@ export function GridTable({
   const wrapperRef = useRef<HTMLDivElement>(null);
   dropTargetRef.current = dropTargetIndex;
 
-  // Column left-edge offsets (relative to header scroll content)
   const columnLeftOffsets = useMemo(() => {
     const offsets: number[] = [];
     let acc = 0;
@@ -343,7 +332,7 @@ export function GridTable({
       offsets.push(acc);
       acc += getColumnWidth(f.id, i);
     });
-    offsets.push(acc); // right edge of last column
+    offsets.push(acc);
     return offsets;
   }, [fields, getColumnWidth]);
 
@@ -424,7 +413,6 @@ export function GridTable({
     (e: React.MouseEvent, field: GridField, fieldIndex: number) => {
       if ((e.target as HTMLElement).closest("button")) return;
 
-      // Right-click: open menu immediately
       if (e.button === 2) {
         e.preventDefault();
         if (onColumnContextMenu) {
@@ -433,7 +421,6 @@ export function GridTable({
         return;
       }
 
-      // Left-click: hold for a moment to drag, otherwise click opens menu
       if (e.button !== 0) return;
 
       setHoldFieldIndex(fieldIndex);
@@ -450,7 +437,6 @@ export function GridTable({
         if (holdDragTimerRef.current) {
           clearTimeout(holdDragTimerRef.current);
           holdDragTimerRef.current = null;
-          // Quick release = click, open menu
           if (onColumnContextMenu && ev.button === 0) {
             onColumnContextMenu(
               { clientX: ev.clientX, clientY: ev.clientY } as React.MouseEvent,
@@ -466,32 +452,34 @@ export function GridTable({
     [onColumnContextMenu, startColumnDrag],
   );
 
-  const columns = useMemo(
-    () =>
-      fields.map((field) =>
-        columnHelper.accessor((row) => row.cellsByField[field.id] ?? "", {
-          id: field.id,
-          header: field.name,
-          cell: (info) => info.getValue(),
-        }),
-      ),
-    [columnHelper, fields],
-  );
-
-  const table = useReactTable({
-    data: rowModels,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
+  // ── Virtualizer — drives everything, no TanStack Table ──────────
+  const rowVirtualizer = useVirtualizer({
+    count: totalCount,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 30,
   });
 
-  // Search matches: flat list of { rowIndex, fieldIndex } for each occurrence
+  const virtualItems = rowVirtualizer.getVirtualItems();
+
+  // Report visible range to parent for viewport-based fetching
+  const prevRangeRef = useRef<{ start: number; end: number } | null>(null);
+  useEffect(() => {
+    if (virtualItems.length === 0 || !onVisibleRangeChange) return;
+    const start = virtualItems[0]!.index;
+    const end = virtualItems[virtualItems.length - 1]!.index;
+    const prev = prevRangeRef.current;
+    if (prev?.start === start && prev?.end === end) return;
+    prevRangeRef.current = { start, end };
+    onVisibleRangeChange(start, end);
+  }, [virtualItems, onVisibleRangeChange]);
+
+  // Search matches — only search loaded rows (not 100K skeletons)
   const searchMatches = useMemo(() => {
     const term = globalSearch?.trim().toLowerCase();
     if (!term) return [];
     const matches: { rowIndex: number; fieldIndex: number }[] = [];
-    for (let rowIdx = 0; rowIdx < rowModels.length; rowIdx++) {
-      const row = rowModels[rowIdx];
-      if (!row) continue;
+    for (const [rowIdx, row] of rowLookup) {
       for (let colIdx = 0; colIdx < fields.length; colIdx++) {
         const fieldId = fields[colIdx]?.id;
         if (!fieldId) continue;
@@ -505,7 +493,7 @@ export function GridTable({
       }
     }
     return matches;
-  }, [globalSearch, rowModels, fields]);
+  }, [globalSearch, rowLookup, fields]);
 
   useEffect(() => {
     onSearchMatchesChange?.(searchMatches.length);
@@ -513,46 +501,14 @@ export function GridTable({
 
   const activeMatch = searchMatches[activeSearchMatchIndex ?? 0];
 
-  // Virtualize against totalCount so the scrollbar reflects all rows,
-  // even ones not yet fetched. Unloaded rows render as skeletons.
-  const loadedRowCount = table.getRowModel().rows.length;
-  const fetchThreshold =
-    loadedFromStartCount ?? loadedRowCount;
-  const virtualRowCount = Math.max(loadedRowCount, totalCount);
-
-  const rowVirtualizer = useVirtualizer({
-    count: virtualRowCount,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 100,
-  });
-
-  const virtualItems = rowVirtualizer.getVirtualItems();
-
-  // Scroll to active match when it changes
+  // Scroll to active match
   useEffect(() => {
-    if (
-      activeMatch === undefined ||
-      !parentRef.current ||
-      searchMatches.length === 0
-    )
-      return;
+    if (activeMatch === undefined || !parentRef.current || searchMatches.length === 0) return;
     rowVirtualizer.scrollToIndex(activeMatch.rowIndex, {
       align: "center",
       behavior: "smooth",
     });
   }, [activeMatch, searchMatches.length, rowVirtualizer]);
-
-  // Fetch next page when scrolling near the edge of loaded data (prefetch earlier for fast scroll)
-  const lastVirtualItem = virtualItems.at(-1);
-  if (
-    lastVirtualItem &&
-    hasNextPage &&
-    !isFetchingNextPage &&
-    lastVirtualItem.index >= fetchThreshold - 120
-  ) {
-    onFetchNextPage();
-  }
 
   const focusCell = useCallback((rowIndex: number, colIndex: number) => {
     const target = document.querySelector<HTMLElement>(
@@ -590,30 +546,33 @@ export function GridTable({
     [focusCell],
   );
 
-  // Ref for the column-headers scroll container (kept in sync with data scroll)
   const headerScrollRef = useRef<HTMLDivElement>(null);
 
-  // Width of just the columns area (no left pane) — used in the header scroller
   const totalColumnsWidth =
     fields.reduce((acc, f, i) => acc + getColumnWidth(f.id, i), 0) +
     ADD_FIELD_WIDTH;
 
-  // Full scroll content width (left pane + columns + add button)
   const totalContentWidth = LEFT_PANE_WIDTH + totalColumnsWidth;
 
-  // Grid rows width — where horizontal lines stop (left pane + field columns only, no + button)
   const gridRowsWidth =
     LEFT_PANE_WIDTH + fields.reduce((acc, f, i) => acc + getColumnWidth(f.id, i), 0);
 
+  // Collect all loaded row IDs for select-all (only visible/loaded)
+  const loadedRowIds = useMemo(() => {
+    const ids: string[] = [];
+    for (const item of virtualItems) {
+      const row = rowLookup.get(item.index);
+      if (row && !row._skeleton) ids.push(row.id);
+    }
+    return ids;
+  }, [virtualItems, rowLookup]);
 
   return (
     <>
-      {/* ── Outer wrapper: single scroll container for header + data ── */}
       <div ref={wrapperRef} className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        {/* ── Unified scroll container — header sticks at top, scrolls horizontally with data ── */}
         <div
           ref={parentRef}
-          className="relative min-h-0 flex-1 overflow-auto bg-white"
+          className="always-scrollbar relative min-h-0 flex-1 overflow-y-scroll overflow-x-auto bg-white"
           style={{ overscrollBehavior: "none" }}
         >
           {/* ── Sticky header row ── */}
@@ -622,22 +581,21 @@ export function GridTable({
             className="sticky top-0 z-10 flex bg-white"
             style={{ height: ROW_HEIGHT, width: totalContentWidth, minWidth: totalContentWidth }}
           >
-            {/* Frozen left pane — headerLeftPane with checkbox */}
+            {/* Frozen left pane — checkbox */}
             <div
               className="sticky left-0 z-20 flex shrink-0 items-center justify-center border-r border-b border-[#d2d9e3] bg-white"
               style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
             >
               {(() => {
-                const allIds = table.getRowModel().rows.map((r) => r.original.id);
                 const allSelected =
-                  allIds.length > 0 &&
-                  allIds.every((id) => selectedRowIds.has(id));
+                  loadedRowIds.length > 0 &&
+                  loadedRowIds.every((id) => selectedRowIds.has(id));
                 const someSelected =
-                  !allSelected && allIds.some((id) => selectedRowIds.has(id));
+                  !allSelected && loadedRowIds.some((id) => selectedRowIds.has(id));
                 return (
                   <button
                     type="button"
-                    onClick={() => onToggleAll(allIds)}
+                    onClick={() => onToggleAll(loadedRowIds)}
                     className="flex h-[14px] w-[14px] items-center justify-center rounded-sm border bg-white text-white focus:outline-none"
                     style={{
                       borderColor:
@@ -694,7 +652,6 @@ export function GridTable({
                         : "white",
                   }}
                 >
-                  {/* Drop indicator — blue line on insertion edge */}
                   {isDropTarget && (
                     <div
                       className="pointer-events-none absolute top-0 bottom-0 z-30"
@@ -705,7 +662,6 @@ export function GridTable({
                       }}
                     />
                   )}
-                  {/* contentWrapper — Airtable-style structure */}
                   <div className="flex min-w-0 flex-1 items-center gap-2 px-3">
                     <div
                       className="flex min-w-0 flex-1 items-center gap-2"
@@ -741,7 +697,6 @@ export function GridTable({
                       <IconChevronDown />
                     </button>
                   </div>
-                  {/* Resize handle — right edge */}
                   <button
                     type="button"
                     aria-label={`Resize ${field.name} column`}
@@ -759,7 +714,6 @@ export function GridTable({
               );
             })}
 
-            {/* Add field "+" button — ghost cell style like Airtable */}
             {!isLoading && (
               <button
                 ref={addButtonRef}
@@ -801,14 +755,12 @@ export function GridTable({
               style={{ top: ROW_HEIGHT, left: 0, right: 0, bottom: 0 }}
               aria-label="Loading table"
             >
-              {/* Skeleton rows */}
               {Array.from({ length: 20 }).map((_, rowIdx) => (
                 <div
                   key={rowIdx}
                   className="flex border-b border-[#e6ebf2]"
                   style={{ height: ROW_HEIGHT }}
                 >
-                  {/* Left pane skeleton */}
                   <div
                     className="flex shrink-0 items-center justify-center border-r border-[#e6ebf2]"
                     style={{ width: LEFT_PANE_WIDTH, height: ROW_HEIGHT }}
@@ -818,7 +770,6 @@ export function GridTable({
                       style={{ width: 16, height: 10 }}
                     />
                   </div>
-                  {/* Cell skeletons */}
                   {(fields.length > 0 ? fields : Array.from({ length: 5 })).map((_, colIdx) => (
                     <div
                       key={colIdx}
@@ -867,10 +818,10 @@ export function GridTable({
             }}
           >
             {virtualItems.map((item) => {
-              const row = table.getRowModel().rows[item.index];
+              const row = rowLookup.get(item.index);
 
               // Skeleton row for not-yet-loaded data
-              if (!row || (row.original as { _skeleton?: boolean })._skeleton) {
+              if (!row || row._skeleton) {
                 return (
                   <div
                     key={`skeleton-${item.key}`}
@@ -911,7 +862,7 @@ export function GridTable({
                 );
               }
 
-              const isSelected = selectedRowIds.has(row.original.id);
+              const isSelected = selectedRowIds.has(row.id);
               return (
                 <div
                   key={row.id}
@@ -920,7 +871,7 @@ export function GridTable({
                   onContextMenu={(e) => {
                     if (onRowContextMenu) {
                       e.preventDefault();
-                      onRowContextMenu(e, row.original.id);
+                      onRowContextMenu(e, row.id);
                     }
                   }}
                   style={{
@@ -930,7 +881,7 @@ export function GridTable({
                     backgroundColor: isSelected ? "#ebf3ff" : "white",
                   }}
                 >
-                  {/* Frozen left pane — drag handle / row number / checkbox / expand */}
+                  {/* Frozen left pane */}
                   <div
                     className="sticky left-0 z-10 flex shrink-0 items-center border-r border-b border-[#d2d9e3]"
                     style={{
@@ -942,19 +893,17 @@ export function GridTable({
                     <div className="invisible flex w-4 shrink-0 items-center justify-center text-[#97a0af] group-hover:visible">
                       <IconDragHandle />
                     </div>
-                    {/* Row number: hide on hover or when selected */}
                     {!isSelected && (
                       <span className="flex-1 text-center text-xs text-[#6d7887] group-hover:hidden">
                         {item.index + 1}
                       </span>
                     )}
-                    {/* Checkbox: visible on hover or when selected */}
                     <div
                       className={`flex-1 items-center justify-center ${isSelected ? "flex" : "hidden group-hover:flex"}`}
                     >
                       <button
                         type="button"
-                        onClick={() => onToggleRow(row.original.id)}
+                        onClick={() => onToggleRow(row.id)}
                         className="flex h-[14px] w-[14px] items-center justify-center rounded-sm border text-white focus:outline-none"
                         style={{
                           borderColor: isSelected ? "#2a79ef" : "#b2bac5",
@@ -970,19 +919,13 @@ export function GridTable({
                     </div>
                   </div>
 
-                  {/* Data cells */}
-                  {row.getVisibleCells().map((cell, cellIndex) => {
-                    const fieldId = cell.column.id;
-                    const cellValue = cell.getValue();
-                    const rawValue =
-                      typeof cellValue === "string" ||
-                      typeof cellValue === "number"
-                        ? String(cellValue)
-                        : "";
+                  {/* Data cells — rendered directly from fields + row lookup */}
+                  {fields.map((field, cellIndex) => {
+                    const rawValue = row.cellsByField[field.id] ?? "";
                     const isEditing =
-                      editingCell?.rowId === row.original.id &&
-                      editingCell.fieldId === fieldId;
-                    const colWidth = getColumnWidth(fieldId, cellIndex);
+                      editingCell?.rowId === row.id &&
+                      editingCell.fieldId === field.id;
+                    const colWidth = getColumnWidth(field.id, cellIndex);
                     const term = globalSearch?.trim().toLowerCase();
                     const hasSearchMatch =
                       Boolean(term) &&
@@ -990,13 +933,13 @@ export function GridTable({
 
                     return (
                       <GridCell
-                        key={cell.id}
-                        rowId={row.original.id}
-                        fieldId={fieldId}
+                        key={field.id}
+                        rowId={row.id}
+                        fieldId={field.id}
                         value={rawValue}
                         isEditing={isEditing}
                         editValue={isEditing ? editingCell.value : ""}
-                        isFiltered={filteredFieldIds?.has(fieldId)}
+                        isFiltered={filteredFieldIds?.has(field.id)}
                         searchTerm={globalSearch}
                         hasSearchMatch={hasSearchMatch}
                         virtualRowIndex={item.index}
@@ -1055,7 +998,6 @@ export function GridTable({
                 height: dragCol.wrapperHeight,
               }}
             >
-              {/* Shadow header */}
               <div
                 className="flex items-center gap-[5px] border-r border-b border-[#c0cad8] px-3 text-xs font-semibold text-[#4f5d70]"
                 style={{
@@ -1071,7 +1013,6 @@ export function GridTable({
                   {dragField.name}
                 </span>
               </div>
-              {/* Shadow body — translucent column fill */}
               <div
                 style={{
                   height: `calc(100% - ${ROW_HEIGHT}px)`,
@@ -1091,7 +1032,6 @@ export function GridTable({
         className="flex shrink-0 items-center gap-2 border-t border-[#e2e5ea] bg-white px-3 text-xs text-[#607082]"
         style={{ height: 36 }}
       >
-        {/* Add record pill button */}
         <div className="flex items-center">
           <button
             type="button"
@@ -1116,61 +1056,25 @@ export function GridTable({
               xmlns="http://www.w3.org/2000/svg"
               className="flex-none"
             >
-              <path
-                d="M13.5 8V11"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M12 9.5H15"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M5.25 2.5V5"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M4 3.75H6.5"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M10.5 11.5V13.5"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M9.5 12.5H11.5"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M11.6515 2.35241L2.35746 11.6464C2.1622 11.8417 2.1622 12.1583 2.35746 12.3536L3.65014 13.6462C3.8454 13.8415 4.16198 13.8415 4.35725 13.6462L13.6513 4.3522C13.8465 4.15694 13.8465 3.84035 13.6513 3.64509L12.3586 2.35241C12.1633 2.15715 11.8468 2.15715 11.6515 2.35241Z"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M9 5L11 7"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              <path d="M13.5 8V11" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M12 9.5H15" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M5.25 2.5V5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M4 3.75H6.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M10.5 11.5V13.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M9.5 12.5H11.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M11.6515 2.35241L2.35746 11.6464C2.1622 11.8417 2.1622 12.1583 2.35746 12.3536L3.65014 13.6462C3.8454 13.8415 4.16198 13.8415 4.35725 13.6462L13.6513 4.3522C13.8465 4.15694 13.8465 3.84035 13.6513 3.64509L12.3586 2.35241C12.1633 2.15715 11.8468 2.15715 11.6515 2.35241Z" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M9 5L11 7" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span>Add…</span>
           </button>
         </div>
 
         {/* Record count */}
-        <span>{totalCount.toLocaleString()} records</span>
+        <span>
+          {bulkProgress
+            ? `${(totalCount - bulkProgress.total + bulkProgress.inserted).toLocaleString()} records`
+            : `${totalCount.toLocaleString()} records`}
+        </span>
 
         {/* Bulk insert 100K rows */}
         {onBulkInsert && (
