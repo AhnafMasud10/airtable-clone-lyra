@@ -816,9 +816,7 @@ export const tableRouter = createTRPCRouter({
 
       return {
         rows: orderedRecords,
-        fields: fields.filter(
-          (field) => !input.hiddenFieldIds.includes(field.id),
-        ),
+        fields,
         nextCursor,
         total: totalRows?.[0]?.count ?? 0,
       };

@@ -151,9 +151,8 @@ export function BaseGridPageClient({
       globalSearch,
       filters,
       sorts,
-      hiddenFieldIds,
     }),
-    [selectedTableId, globalSearch, filters, sorts, hiddenFieldIds],
+    [selectedTableId, globalSearch, filters, sorts],
   );
 
   const lastRowsInput = useMemo(
@@ -202,6 +201,16 @@ export function BaseGridPageClient({
   // ── Mutations ────────────────────────────────────────────────────────
 
   const [localBaseName, setLocalBaseName] = useState(baseName);
+
+  // Update browser tab title: "BaseName: TableName - Lyra"
+  useEffect(() => {
+    const tables = tablesQuery.data ?? [];
+    const selectedTable = tables.find((t) => t.id === selectedTableId);
+    const tableName = selectedTable?.name ?? "";
+    document.title = tableName
+      ? `${localBaseName}: ${tableName} - Lyra`
+      : `${localBaseName} - Lyra`;
+  }, [localBaseName, selectedTableId, tablesQuery.data]);
 
   const updateBase = api.base.update.useMutation({
     onMutate: (input) => {
