@@ -1,5 +1,31 @@
 import { TRPCError } from "@trpc/server";
+import type { Pool } from "pg";
 import type { PrismaClient } from "../../../generated/prisma";
+
+/**
+ * Asserts table access using raw SQL (no Prisma). Throws if not found or forbidden.
+ */
+export async function assertTableAccessRaw(
+  pool: Pool,
+  tableId: string,
+  userId: string,
+) {
+  const result = await pool.query<{ baseId: string; ownerId: string }>(
+    `SELECT t."baseId", b."ownerId"
+     FROM "AirtableTable" t
+     JOIN "Base" b ON b.id = t."baseId"
+     WHERE t.id = $1`,
+    [tableId],
+  );
+  const row = result.rows[0];
+  if (!row) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Table not found" });
+  }
+  if (row.ownerId !== userId) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Access denied" });
+  }
+  return row.baseId;
+}
 
 /**
  * Asserts the user owns the base. Throws FORBIDDEN if not.

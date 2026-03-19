@@ -22,7 +22,9 @@ import {
   TableUpdateInputSchema,
 } from "~/types/base-table";
 
-import { assertBaseOwnership, assertTableAccess } from "../auth-helpers";
+import { assertBaseOwnership, assertTableAccess, assertTableAccessRaw } from "../auth-helpers";
+import { pool } from "~/server/db";
+import { createId } from "@paralleldrive/cuid2";
 
 const numberRegex = String.raw`^-?[0-9]+(\.[0-9]+)?$`;
 
@@ -177,10 +179,51 @@ function buildSortSql(sorts: z.infer<typeof GridQueryInputSchema>["sorts"]) {
   return Prisma.sql`ORDER BY ${Prisma.join(expressions, ", ")}, r."order" ASC, r.id ASC`;
 }
 
-function sampleValueForField(type: string) {
-  if (type === "NUMBER")
-    return String(faker.number.int({ min: 0, max: 100000 }));
+type FieldRow = { id: string; name: string; type: string; order: number };
+
+function fakerValueForField(field: FieldRow): string {
+  const name = field.name.toLowerCase();
+  if (field.type === "NUMBER")
+    return String(faker.number.int({ min: 1000, max: 500000 }));
+  if (field.type === "DATE")
+    return faker.date.past({ years: 3 }).toISOString().split("T")[0]!;
+  if (field.type === "BOOLEAN") return faker.datatype.boolean() ? "true" : "false";
+  if (field.type === "LONG_TEXT") return faker.lorem.sentence();
+  if (name.includes("email")) return faker.internet.email();
+  if (name.includes("phone")) return faker.phone.number();
+  if (name.includes("company")) return faker.company.name();
+  if (name.includes("name")) return faker.person.fullName();
+  if (name.includes("status"))
+    return faker.helpers.arrayElement(["Active", "Inactive", "Pending", "Churned", "Trial"]);
+  if (name.includes("revenue"))
+    return String(faker.number.int({ min: 1000, max: 500000 }));
+  if (name.includes("note")) return faker.lorem.sentence();
   return faker.word.words({ count: { min: 1, max: 3 } });
+}
+
+function templateValueForField(
+  field: FieldRow,
+  rowIndex: number,
+  templates: Map<string, string[]>,
+): string {
+  const templateValues = templates.get(field.id);
+  if (!templateValues?.length) return "";
+
+  const idx = rowIndex % templateValues.length;
+  const base = templateValues[idx]!;
+
+  if (rowIndex < templateValues.length) return base;
+
+  if (field.type === "NUMBER") {
+    const num = parseInt(base, 10) || 0;
+    return String(num + (rowIndex % 1000));
+  }
+  if (field.type === "DATE") {
+    const d = new Date(base);
+    d.setDate(d.getDate() + (rowIndex % 365));
+    return d.toISOString().split("T")[0] ?? base;
+  }
+  return `${base} ${rowIndex + 1}`;
 }
 
 export const tableRouter = createTRPCRouter({
@@ -377,56 +420,102 @@ export const tableRouter = createTRPCRouter({
     .input(TableBulkInsertRowsInputSchema)
     .output(TableBulkInsertRowsOutputSchema)
     .mutation(async ({ ctx, input }) => {
-      await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
-      const fields = await ctx.db.field.findMany({
-        where: { tableId: input.tableId },
-        orderBy: { order: "asc" },
-      });
+      await assertTableAccessRaw(pool, input.tableId, ctx.session.user.id);
 
-      if (fields.length === 0) {
-        return { inserted: 0 };
+      const fieldsResult = await pool.query<FieldRow>(
+        `SELECT id, name, type, "order" FROM "Field" WHERE "tableId" = $1 ORDER BY "order" ASC`,
+        [input.tableId],
+      );
+      const fields = fieldsResult.rows;
+      if (fields.length === 0) return { inserted: 0 };
+
+      let startOrder: number;
+      if (input.startOrder !== undefined) {
+        startOrder = input.startOrder;
+      } else {
+        const maxOrderResult = await pool.query<{ max: number | null }>(
+          `SELECT MAX("order") as max FROM "Record" WHERE "tableId" = $1`,
+          [input.tableId],
+        );
+        startOrder = (maxOrderResult.rows[0]?.max ?? -1) + 1;
       }
+      const count = input.count;
 
-      // Get current max order so new rows continue from the end
-      const maxOrder = await ctx.db.record.aggregate({
-        where: { tableId: input.tableId },
-        _max: { order: true },
-      });
-      const startOrder = (maxOrder._max.order ?? -1) + 1;
-
-      // Generate faker values for this batch (1K rows is fast — ~20ms)
-      const count = input.count; // typically 1000
-
-      // Create records and get IDs back
-      const records = await ctx.db.record.createManyAndReturn({
-        data: Array.from({ length: count }, (_, k) => ({
-          tableId: input.tableId,
-          order: startOrder + k,
-        })),
-        select: { id: true },
-      });
-
-      // Build cells with faker values
-      const cells: { recordId: string; fieldId: string; value: string }[] = [];
-      for (const record of records) {
-        for (const field of fields) {
-          cells.push({
-            recordId: record.id,
-            fieldId: field.id,
-            value: sampleValueForField(field.type),
-          });
+      const TEMPLATE_SIZE = Math.min(1000, count);
+      const templates = new Map<string, string[]>();
+      for (const field of fields) {
+        const values: string[] = [];
+        for (let i = 0; i < TEMPLATE_SIZE; i++) {
+          values.push(fakerValueForField(field));
         }
+        templates.set(field.id, values);
       }
 
-      // Insert cells in chunks to stay under PG 32766 param limit
-      const CELL_CHUNK = 3000;
-      for (let c = 0; c < cells.length; c += CELL_CHUNK) {
-        await ctx.db.cell.createMany({
-          data: cells.slice(c, c + CELL_CHUNK),
-        });
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+
+        const RECORD_BATCH = 5000;
+        const CELL_BATCH = 2000;
+
+        const now = new Date();
+
+        for (let i = 0; i < count; i += RECORD_BATCH) {
+          const batchSize = Math.min(RECORD_BATCH, count - i);
+          const ids = Array.from({ length: batchSize }, () => createId());
+          const orders = Array.from(
+            { length: batchSize },
+            (_, k) => startOrder + i + k,
+          );
+          const recParams: unknown[] = [];
+          const recPh: string[] = [];
+          for (let k = 0; k < batchSize; k++) {
+            recPh.push(`($${recParams.length + 1}, $${recParams.length + 2}, $${recParams.length + 3}, $${recParams.length + 4}, $${recParams.length + 5})`);
+            recParams.push(ids[k], input.tableId, orders[k], now, now);
+          }
+          await client.query(
+            `INSERT INTO "Record" (id, "tableId", "order", "createdAt", "updatedAt") VALUES ${recPh.join(", ")}`,
+            recParams,
+          );
+
+          const cells: { id: string; recordId: string; fieldId: string; value: string }[] = [];
+          for (let r = 0; r < batchSize; r++) {
+            const recordId = ids[r]!;
+            const rowIndex = i + r;
+            for (const field of fields) {
+              cells.push({
+                id: createId(),
+                recordId,
+                fieldId: field.id,
+                value: templateValueForField(field, rowIndex, templates),
+              });
+            }
+          }
+
+          for (let c = 0; c < cells.length; c += CELL_BATCH) {
+            const cellBatch = cells.slice(c, c + CELL_BATCH);
+            const cellParams: unknown[] = [];
+            const cellPh: string[] = [];
+            for (const cell of cellBatch) {
+              cellPh.push(`($${cellParams.length + 1}, $${cellParams.length + 2}, $${cellParams.length + 3}, $${cellParams.length + 4}, $${cellParams.length + 5}, $${cellParams.length + 6})`);
+              cellParams.push(cell.id, cell.recordId, cell.fieldId, cell.value ?? "", now, now);
+            }
+            await client.query(
+              `INSERT INTO "Cell" (id, "recordId", "fieldId", value, "createdAt", "updatedAt") VALUES ${cellPh.join(", ")}`,
+              cellParams,
+            );
+          }
+        }
+
+        await client.query("COMMIT");
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+      } finally {
+        client.release();
       }
 
-      return { inserted: count };
+      return { inserted: count, startOrder };
     }),
 
   update: protectedProcedure
@@ -551,8 +640,10 @@ export const tableRouter = createTRPCRouter({
     .output(TableClearDataInputSchema)
     .mutation(async ({ ctx, input }) => {
       await assertTableAccess(ctx.db, input.tableId, ctx.session.user.id);
-      // Delete all records (cells cascade via Record onDelete)
-      await ctx.db.record.deleteMany({ where: { tableId: input.tableId } });
+      // Raw SQL for fast bulk delete (cells cascade via FK onDelete)
+      await pool.query(`DELETE FROM "Record" WHERE "tableId" = $1`, [
+        input.tableId,
+      ]);
       return { tableId: input.tableId };
     }),
 
@@ -602,21 +693,58 @@ export const tableRouter = createTRPCRouter({
 
       const whereSql = Prisma.sql`WHERE ${Prisma.join(whereClauses, " AND ")}`;
       const sortSql = buildSortSql(input.sorts);
-      const offset = input.cursor;
+      const cursor = input.cursor;
+      const fromEnd =
+        typeof cursor === "object" &&
+        cursor !== null &&
+        "fromEnd" in cursor &&
+        cursor.fromEnd === true;
+      const keysetCursor =
+        typeof cursor === "object" &&
+        cursor !== null &&
+        "lastOrder" in cursor &&
+        "lastId" in cursor
+          ? cursor
+          : null;
+      const useKeyset = keysetCursor !== null && input.sorts.length === 0;
       const limitWithPeek = input.limit + 1;
 
-      const [idRows, totalRows, fields] = await Promise.all([
-        ctx.db.$queryRaw<Array<{ id: string; order: number }>>(
-          Prisma.sql`
+      let idQuery: ReturnType<typeof Prisma.sql>;
+      if (fromEnd && input.sorts.length === 0) {
+        idQuery = Prisma.sql`
+          SELECT r.id, r."order"
+          FROM "Record" r
+          ${whereSql}
+          ORDER BY r."order" DESC, r.id DESC
+          LIMIT ${input.limit}
+        `;
+      } else if (useKeyset && keysetCursor) {
+        idQuery = Prisma.sql`
+            SELECT r.id, r."order"
+            FROM "Record" r
+            ${whereSql}
+            AND (r."order", r.id) > (${keysetCursor.lastOrder}, ${keysetCursor.lastId})
+            ${sortSql}
+            LIMIT ${limitWithPeek}
+          `;
+      } else {
+        idQuery = Prisma.sql`
             SELECT r.id, r."order"
             FROM "Record" r
             ${whereSql}
             ${sortSql}
-            OFFSET ${offset}
+            OFFSET ${typeof cursor === "number" ? cursor : 0}
             LIMIT ${limitWithPeek}
-          `,
-        ),
-        offset === 0
+          `;
+      }
+
+      const isFirstPage =
+        !fromEnd && !useKeyset && (typeof cursor !== "number" || cursor === 0);
+      const needsTotal = isFirstPage || fromEnd;
+
+      const [idRows, totalRows, fields] = await Promise.all([
+        ctx.db.$queryRaw<Array<{ id: string; order: number }>>(idQuery),
+        needsTotal
           ? ctx.db.$queryRaw<Array<{ count: number }>>(
               Prisma.sql`
                 SELECT CAST(COUNT(*) AS INTEGER) AS count
@@ -631,9 +759,13 @@ export const tableRouter = createTRPCRouter({
         }),
       ]);
 
-      const hasMore = idRows.length > input.limit;
-      const pageRows = hasMore ? idRows.slice(0, input.limit) : idRows;
+      const hasMore = !fromEnd && idRows.length > input.limit;
+      let pageRows = hasMore ? idRows.slice(0, input.limit) : idRows;
+      if (fromEnd) {
+        pageRows = [...pageRows].reverse();
+      }
       const rowIds = pageRows.map((row) => row.id);
+      const lastRow = pageRows[pageRows.length - 1];
 
       const records =
         rowIds.length === 0
@@ -650,12 +782,17 @@ export const tableRouter = createTRPCRouter({
           Boolean(record),
         );
 
+      const nextCursor =
+        fromEnd ? null : hasMore && lastRow
+          ? { lastOrder: lastRow.order, lastId: lastRow.id }
+          : null;
+
       return {
         rows: orderedRecords,
         fields: fields.filter(
           (field) => !input.hiddenFieldIds.includes(field.id),
         ),
-        nextCursor: hasMore ? offset + input.limit : null,
+        nextCursor,
         total: totalRows?.[0]?.count ?? 0,
       };
     }),

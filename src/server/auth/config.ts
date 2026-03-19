@@ -36,7 +36,14 @@ export const authConfig = {
   trustHost: true,
   pages: {
     signIn: "/sign-in",
+    error: "/auth-error",
   },
+  events: {
+    async createUser({ user }) {
+      console.log("[Auth] New user created:", user.email);
+    },
+  },
+  debug: process.env.NODE_ENV === "development",
   providers: [
     ...(env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET
       ? [

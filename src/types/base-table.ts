@@ -99,11 +99,13 @@ export const TableClearDataInputSchema = z.object({
 
 export const TableBulkInsertRowsInputSchema = z.object({
   tableId: z.string().min(1),
-  count: z.number().int().min(1).max(10000).default(1000),
+  count: z.number().int().min(1).max(100000).default(1000),
+  startOrder: z.number().int().nonnegative().optional(),
 });
 
 export const TableBulkInsertRowsOutputSchema = z.object({
   inserted: z.number().int().nonnegative(),
+  startOrder: z.number().int().nonnegative().optional(),
 });
 
 export const ViewForTableSchema = z.object({
@@ -243,9 +245,15 @@ export const GridFilterSchema = z.union([
   GridNumberFilterSchema,
 ]);
 
+export const GridCursorSchema = z.union([
+  z.number().int().nonnegative(),
+  z.object({ lastOrder: z.number(), lastId: z.string() }),
+  z.object({ fromEnd: z.literal(true) }),
+]);
+
 export const GridQueryInputSchema = z.object({
   tableId: z.string().min(1),
-  cursor: z.number().int().nonnegative().default(0),
+  cursor: GridCursorSchema.optional().default(0),
   limit: z.number().int().min(20).max(1000).default(200),
   globalSearch: z.string().optional(),
   filters: z.array(GridFilterSchema).default([]),
@@ -256,7 +264,9 @@ export const GridQueryInputSchema = z.object({
 export const GridWindowOutputSchema = z.object({
   rows: z.array(RecordForTableSchema),
   fields: z.array(FieldForTableSchema),
-  nextCursor: z.number().int().nonnegative().nullable(),
+  nextCursor: z
+    .union([z.number().int().nonnegative(), z.object({ lastOrder: z.number(), lastId: z.string() })])
+    .nullable(),
   total: z.number().int().nonnegative(),
 });
 

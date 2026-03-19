@@ -17,6 +17,8 @@ export type TableRowModel = {
   id: string;
   order: number;
   cellsByField: Record<string, string>;
+  _skeleton?: boolean;
 };
 
 export const PAGE_SIZE = 500;
+export const INITIAL_LOAD_SIZE = 1000;

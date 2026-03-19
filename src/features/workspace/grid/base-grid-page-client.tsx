@@ -11,7 +11,7 @@ import type {
   TableSummary,
   ViewItem,
 } from "./types";
-import { PAGE_SIZE } from "./types";
+import { INITIAL_LOAD_SIZE, PAGE_SIZE } from "./types";
 import { TopBar } from "./top-bar";
 import { TableTabs } from "./table-tabs";
 import { ViewsSidebar } from "./views-sidebar";
@@ -142,12 +142,22 @@ export function BaseGridPageClient({
   const gridInput = useMemo(
     () => ({
       tableId: selectedTableId ?? "missing-table",
-      limit: PAGE_SIZE,
+      limit: INITIAL_LOAD_SIZE,
       globalSearch,
       filters,
       sorts,
+      hiddenFieldIds,
     }),
-    [selectedTableId, globalSearch, filters, sorts],
+    [selectedTableId, globalSearch, filters, sorts, hiddenFieldIds],
+  );
+
+  const lastRowsInput = useMemo(
+    () => ({
+      ...gridInput,
+      cursor: { fromEnd: true as const },
+      limit: 1000,
+    }),
+    [gridInput],
   );
 
   const gridQuery = api.table.getGridWindow.useInfiniteQuery(gridInput, {
@@ -156,6 +166,14 @@ export function BaseGridPageClient({
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     placeholderData: keepPreviousData,
     staleTime: 30_000,
+  });
+
+  const serverTotalFromFirstPage = gridQuery.data?.pages[0]?.total ?? 0;
+  const lastRowsQuery = api.table.getGridWindow.useQuery(lastRowsInput, {
+    enabled:
+      Boolean(selectedTableId) &&
+      serverTotalFromFirstPage > 1000 &&
+      !gridQuery.isPlaceholderData,
   });
 
   // ── Eager prefetch: warm cache for ALL tables on mount ─────────────
@@ -878,11 +896,30 @@ export function BaseGridPageClient({
   const fields: GridField[] = allFieldsFromGrid.filter(
     (f) => !hiddenFieldIds.includes(f.id),
   );
-  const rows = useMemo(
-    () => gridQuery.data?.pages.flatMap((page) => page.rows) ?? [],
-    [gridQuery.data],
-  );
   const serverTotal = gridQuery.data?.pages[0]?.total ?? 0;
+
+  const rows = useMemo(() => {
+    const fromPages = gridQuery.data?.pages.flatMap((page) => page.rows) ?? [];
+    const lastRows = lastRowsQuery.data?.rows ?? [];
+    const total = Math.max(serverTotal, fromPages.length + lastRows.length);
+    if (total === 0) return fromPages;
+    if (lastRows.length === 0) return fromPages;
+
+    const result: (typeof fromPages[0] | { id: string; order: number; cells: { fieldId: string; value: string | null }[]; _skeleton: true })[] =
+      Array.from({ length: total }, (_, i) => {
+        if (i < fromPages.length) return fromPages[i]!;
+        if (i >= total - lastRows.length)
+          return lastRows[i - (total - lastRows.length)]!;
+        return {
+          id: `skeleton-${i}`,
+          tableId: "",
+          order: i,
+          cells: [],
+          _skeleton: true as const,
+        };
+      });
+    return result;
+  }, [gridQuery.data, lastRowsQuery.data, serverTotal]);
   // During bulk insert, use the higher of server total or progress count
   // so the virtualizer shows the full scroll height immediately
   const totalCount = bulkProgress
@@ -900,13 +937,18 @@ export function BaseGridPageClient({
 
   const rowModels: TableRowModel[] = useMemo(
     () =>
-      rows.map((row) => ({
-        id: row.id,
-        order: row.order,
-        cellsByField: Object.fromEntries(
-          row.cells.map((cell) => [cell.fieldId, cell.value ?? ""]),
-        ),
-      })),
+      rows.map((row) => {
+        const base = {
+          id: row.id,
+          order: row.order,
+          cellsByField: Object.fromEntries(
+            row.cells.map((cell) => [cell.fieldId, cell.value ?? ""]),
+          ),
+        };
+        return "_skeleton" in row && row._skeleton
+          ? { ...base, _skeleton: true }
+          : base;
+      }),
     [rows],
   );
 
@@ -1041,33 +1083,45 @@ export function BaseGridPageClient({
 
   const handleBulkInsert = useCallback(async () => {
     if (!selectedTableId || bulkProgress) return;
-    const BATCH = 1000;
     const TOTAL = 100000;
-    const CONCURRENCY = 5;
-    const totalBatches = TOTAL / BATCH;
+    const BATCH = 5000;
+    const CONCURRENCY = 6;
 
     setBulkProgress({ inserted: 0, total: TOTAL });
 
-    // First batch — insert and WAIT for grid refresh so rows appear instantly
-    await bulkInsertRows.mutateAsync({ tableId: selectedTableId, count: BATCH });
-    setBulkProgress({ inserted: BATCH, total: TOTAL });
-    await utils.table.getGridWindow.invalidate(gridInput);
+    let nextStartOrder: number | undefined;
+    let inserted = 0;
 
-    // Remaining batches — fire with concurrency, non-blocking refresh
-    let inserted = BATCH;
-    for (let i = 1; i < totalBatches; i += CONCURRENCY) {
-      const chunkSize = Math.min(CONCURRENCY, totalBatches - i);
-      await Promise.all(
-        Array.from({ length: chunkSize }, () =>
-          bulkInsertRows.mutateAsync({ tableId: selectedTableId, count: BATCH }),
-        ),
+    while (inserted < TOTAL) {
+      const batchCount =
+        nextStartOrder === undefined
+          ? 1
+          : Math.min(CONCURRENCY, Math.ceil((TOTAL - inserted) / BATCH));
+
+      const results = await Promise.all(
+        Array.from({ length: batchCount }, (_, i) => {
+          const offset = inserted + i * BATCH;
+          const count = Math.min(BATCH, TOTAL - offset);
+          return bulkInsertRows.mutateAsync({
+            tableId: selectedTableId,
+            count,
+            startOrder:
+              nextStartOrder !== undefined ? nextStartOrder + i * BATCH : undefined,
+          });
+        }),
       );
-      inserted += chunkSize * BATCH;
+
+      if (results[0]?.startOrder !== undefined) {
+        nextStartOrder = results[0].startOrder + results[0].inserted;
+      }
+      const added = results.reduce((sum, r) => sum + r.inserted, 0);
+      inserted += added;
       setBulkProgress({ inserted, total: TOTAL });
       void utils.table.getGridWindow.invalidate(gridInput);
     }
 
     setBulkProgress(null);
+    await utils.table.getGridWindow.invalidate(gridInput);
   }, [selectedTableId, bulkProgress, bulkInsertRows, utils, gridInput]);
 
   const handleCreateView = useCallback(
@@ -1781,6 +1835,12 @@ export function BaseGridPageClient({
                 rowModels={rowModels}
                 hasNextPage={gridQuery.hasNextPage ?? false}
                 isFetchingNextPage={gridQuery.isFetchingNextPage}
+                loadedFromStartCount={
+                  gridQuery.data?.pages.reduce(
+                    (sum, p) => sum + p.rows.length,
+                    0,
+                  )
+                }
                 isLoading={gridQuery.isLoading}
                 isPlaceholderData={gridQuery.isPlaceholderData}
                 isError={gridQuery.isError}

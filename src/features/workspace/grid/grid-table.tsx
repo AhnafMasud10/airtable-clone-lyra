@@ -207,6 +207,7 @@ type GridTableProps = Readonly<{
   rowModels: TableRowModel[];
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
+  loadedFromStartCount?: number;
   isLoading: boolean;
   isPlaceholderData: boolean;
   isError: boolean;
@@ -248,6 +249,7 @@ export function GridTable({
   rowModels,
   hasNextPage,
   isFetchingNextPage,
+  loadedFromStartCount,
   isLoading,
   isPlaceholderData,
   isError,
@@ -514,13 +516,15 @@ export function GridTable({
   // Virtualize against totalCount so the scrollbar reflects all rows,
   // even ones not yet fetched. Unloaded rows render as skeletons.
   const loadedRowCount = table.getRowModel().rows.length;
+  const fetchThreshold =
+    loadedFromStartCount ?? loadedRowCount;
   const virtualRowCount = Math.max(loadedRowCount, totalCount);
 
   const rowVirtualizer = useVirtualizer({
     count: virtualRowCount,
     getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_HEIGHT,
-    overscan: 50,
+    overscan: 100,
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
@@ -539,13 +543,13 @@ export function GridTable({
     });
   }, [activeMatch, searchMatches.length, rowVirtualizer]);
 
-  // Fetch next page when scrolling near the edge of loaded data
+  // Fetch next page when scrolling near the edge of loaded data (prefetch earlier for fast scroll)
   const lastVirtualItem = virtualItems.at(-1);
   if (
     lastVirtualItem &&
     hasNextPage &&
     !isFetchingNextPage &&
-    lastVirtualItem.index >= loadedRowCount - 40
+    lastVirtualItem.index >= fetchThreshold - 120
   ) {
     onFetchNextPage();
   }
@@ -866,7 +870,7 @@ export function GridTable({
               const row = table.getRowModel().rows[item.index];
 
               // Skeleton row for not-yet-loaded data
-              if (!row) {
+              if (!row || (row.original as { _skeleton?: boolean })._skeleton) {
                 return (
                   <div
                     key={`skeleton-${item.key}`}
