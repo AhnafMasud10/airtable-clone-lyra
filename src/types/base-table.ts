@@ -42,6 +42,8 @@ export const BaseCreateOutputSchema = z.object({
   id: z.string(),
   name: z.string(),
   ownerId: z.string(),
+  tableId: z.string().optional(),
+  viewId: z.string().optional(),
 });
 
 export const BaseUpdateInputSchema = z.object({

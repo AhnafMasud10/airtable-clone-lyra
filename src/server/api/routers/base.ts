@@ -100,7 +100,16 @@ export const baseRouter = createTRPCRouter({
           ],
         });
 
-        return base;
+        const view = await tx.view.findFirst({
+          where: { tableId: table.id },
+          select: { id: true },
+        });
+
+        return {
+          ...base,
+          tableId: table.id,
+          viewId: view?.id ?? undefined,
+        };
       });
     }),
 });

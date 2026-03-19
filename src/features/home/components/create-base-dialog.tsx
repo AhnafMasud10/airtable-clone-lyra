@@ -16,9 +16,13 @@ export function CreateBaseDialog({ open, onClose }: CreateBaseDialogProps) {
 
   const createBase = api.base.create.useMutation({
     onSuccess: async (base) => {
-      await utils.base.list.invalidate();
       onClose();
-      router.push(`/base/${base.id}`);
+      if (base.tableId && base.viewId) {
+        router.push(`/base/${base.id}/table/${base.tableId}/view/${base.viewId}`);
+      } else {
+        router.push(`/base/${base.id}`);
+      }
+      await utils.base.list.invalidate();
     },
   });
 

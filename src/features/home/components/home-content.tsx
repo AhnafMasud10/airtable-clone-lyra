@@ -156,14 +156,45 @@ export function HomeContent() {
         <h1 className="pb-[20px] text-[28px] font-semibold leading-[18px] text-[#333]">
           Home
         </h1>
-        <div className="rounded-lg border border-dashed border-[#d4dae4] bg-white p-10 text-center">
-          <p className="text-sm text-[#6f7b8a]">
-            No bases yet. Create your first base to get started.
-          </p>
-          <div className="mt-6 flex justify-center">
-            <div className="w-full max-w-[200px]">
-              <CreateBaseButton />
+        <div className="relative z-[5] shrink-0" style={{ paddingBottom: 10, marginBottom: -10 }}>
+          <div className="relative z-[1] flex items-center justify-between pb-[18px]">
+            <div className="mr-[8px] flex items-center">
+              <FilterDropdown value={filter} onChange={setFilter} />
             </div>
+            <div className="flex">
+              <div role="radiogroup" className="flex items-center">
+                <button type="button" className="inline-flex rounded-full p-[4px] text-[#888] hover:text-[#333]" aria-label="View items in a list">
+                  <svg width="20" height="20" viewBox="0 0 256 256" fill="none" stroke="currentColor" strokeWidth="20" strokeLinecap="round" style={{ shapeRendering: "geometricPrecision" }}>
+                    <line x1="40" y1="64" x2="216" y2="64" />
+                    <line x1="40" y1="128" x2="216" y2="128" />
+                    <line x1="40" y1="192" x2="216" y2="192" />
+                  </svg>
+                </button>
+                <button type="button" className="inline-flex rounded-full bg-[#f0f0f0] p-[4px] text-[#333]" aria-label="View items in a grid">
+                  <svg width="20" height="20" viewBox="0 0 256 256" fill="none" stroke="currentColor" strokeWidth="20" strokeLinecap="round" strokeLinejoin="round" style={{ shapeRendering: "geometricPrecision" }}>
+                    <rect x="40" y="40" width="72" height="72" rx="8" />
+                    <rect x="144" y="40" width="72" height="72" rx="8" />
+                    <rect x="40" y="144" width="72" height="72" rx="8" />
+                    <rect x="144" y="144" width="72" height="72" rx="8" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-1 flex-col items-center justify-center">
+          <h2 className="text-[17px] font-medium leading-[22px] text-[#333]">
+            You haven&apos;t opened anything recently
+          </h2>
+          <p className="mt-[8px] text-[14px] leading-[20px] text-[#6f7b8a]">
+            Apps that you have recently opened will appear here.
+          </p>
+          <div className="mt-[24px]">
+            <CreateBaseButton
+              variant="outline"
+              label="Go to all workspaces"
+              compact
+            />
           </div>
         </div>
       </div>
