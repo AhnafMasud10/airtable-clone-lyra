@@ -200,30 +200,6 @@ function fakerValueForField(field: FieldRow): string {
   return faker.word.words({ count: { min: 1, max: 3 } });
 }
 
-function templateValueForField(
-  field: FieldRow,
-  rowIndex: number,
-  templates: Map<string, string[]>,
-): string {
-  const templateValues = templates.get(field.id);
-  if (!templateValues?.length) return "";
-
-  const idx = rowIndex % templateValues.length;
-  const base = templateValues[idx]!;
-
-  if (rowIndex < templateValues.length) return base;
-
-  if (field.type === "NUMBER") {
-    const num = parseInt(base, 10) || 0;
-    return String(num + (rowIndex % 1000));
-  }
-  if (field.type === "DATE") {
-    const d = new Date(base);
-    d.setDate(d.getDate() + (rowIndex % 365));
-    return d.toISOString().split("T")[0] ?? base;
-  }
-  return `${base} ${rowIndex + 1}`;
-}
 
 export const tableRouter = createTRPCRouter({
   listByBase: protectedProcedure
@@ -447,7 +423,7 @@ export const tableRouter = createTRPCRouter({
       const fieldIds: string[] = [];
       for (const field of fields) {
         fieldIds.push(field.id);
-        const values: string[] = new Array(TEMPLATE_SIZE);
+        const values: string[] = new Array<string>(TEMPLATE_SIZE);
         for (let i = 0; i < TEMPLATE_SIZE; i++) {
           values[i] = fakerValueForField(field);
         }
@@ -487,9 +463,9 @@ export const tableRouter = createTRPCRouter({
 
           // Build cell arrays for unnest — flat array indexing, no Map lookups
           const totalCells = batchSize * numFields;
-          let rids: string[] = new Array(Math.min(totalCells, CELL_BATCH));
-          let fids: string[] = new Array(Math.min(totalCells, CELL_BATCH));
-          let vals: string[] = new Array(Math.min(totalCells, CELL_BATCH));
+          let rids = new Array<string>(Math.min(totalCells, CELL_BATCH));
+          let fids = new Array<string>(Math.min(totalCells, CELL_BATCH));
+          let vals = new Array<string>(Math.min(totalCells, CELL_BATCH));
           let pos = 0;
 
           for (const rec of recordResult.rows) {
@@ -527,9 +503,9 @@ export const tableRouter = createTRPCRouter({
                   [rids.slice(0, pos), fids.slice(0, pos), vals.slice(0, pos)],
                 );
                 // Reset for next chunk
-                rids = new Array(Math.min(totalCells - pos, CELL_BATCH));
-                fids = new Array(Math.min(totalCells - pos, CELL_BATCH));
-                vals = new Array(Math.min(totalCells - pos, CELL_BATCH));
+                rids = new Array<string>(Math.min(totalCells - pos, CELL_BATCH));
+                fids = new Array<string>(Math.min(totalCells - pos, CELL_BATCH));
+                vals = new Array<string>(Math.min(totalCells - pos, CELL_BATCH));
                 pos = 0;
               }
             }
