@@ -935,6 +935,11 @@ export function BaseGridPageClient({
     return new Set(filters.filter(isComplete).map((f) => f.fieldId));
   }, [filters]);
 
+  const sortedFieldIds = useMemo(
+    () => new Set(sorts.map((s) => s.fieldId)),
+    [sorts],
+  );
+
   const selectedTableName =
     (tablesQuery.data ?? []).find((t) => t.id === selectedTableId)?.name ??
     "Untitled table";
@@ -1904,6 +1909,7 @@ export function BaseGridPageClient({
                 onRowContextMenu={handleRowContextMenu}
                 onColumnContextMenu={handleColumnContextMenu}
                 filteredFieldIds={filteredFieldIds}
+                sortedFieldIds={sortedFieldIds}
                 onBulkInsert={handleBulkInsert}
                 isBulkInserting={bulkProgress !== null}
                 bulkProgress={bulkProgress}

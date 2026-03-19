@@ -35,6 +35,7 @@ type GridCellProps = Readonly<{
   isEditing: boolean;
   editValue: string;
   isFiltered?: boolean;
+  isSorted?: boolean;
   searchTerm?: string;
   hasSearchMatch?: boolean;
   virtualRowIndex: number;
@@ -58,6 +59,7 @@ export const GridCell = memo(function GridCell({
   isEditing,
   editValue,
   isFiltered,
+  isSorted,
   searchTerm,
   hasSearchMatch,
   virtualRowIndex,
@@ -69,7 +71,7 @@ export const GridCell = memo(function GridCell({
   onCancelEdit,
   onCellKeyDown,
 }: GridCellProps) {
-  const filteredBg = isFiltered ? "bg-[#ecfce5]" : "";
+  const filteredBg = isFiltered ? "bg-[#ecfce5]" : isSorted ? "bg-[#fef3e2]" : "";
   const searchMatchBg = hasSearchMatch ? "bg-[#fef9c3]" : "";
 
   const highlightedContent = useMemo(() => {

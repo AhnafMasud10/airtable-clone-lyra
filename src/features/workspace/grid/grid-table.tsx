@@ -228,6 +228,7 @@ type GridTableProps = Readonly<{
     fieldIndex: number,
   ) => void;
   filteredFieldIds?: Set<string>;
+  sortedFieldIds?: Set<string>;
   onBulkInsert?: () => void;
   isBulkInserting?: boolean;
   bulkProgress?: { inserted: number; total: number } | null;
@@ -260,6 +261,7 @@ export function GridTable({
   onRowContextMenu,
   onColumnContextMenu,
   filteredFieldIds,
+  sortedFieldIds,
   onBulkInsert,
   isBulkInserting,
   bulkProgress,
@@ -621,6 +623,7 @@ export function GridTable({
               const isDropTarget = dropTargetIndex === i && dragFrom !== null && dragFrom !== i;
               const indicatorSide = dragFrom !== null && dragFrom < i ? "right" : "left";
               const isFieldFiltered = filteredFieldIds?.has(field.id);
+              const isFieldSorted = sortedFieldIds?.has(field.id);
               const term = globalSearch?.trim().toLowerCase() ?? "";
               const hasSearchMatchesInColumn =
                 term.length > 0 && field.name.toLowerCase().includes(term);
@@ -649,7 +652,9 @@ export function GridTable({
                       ? "#facc15"
                       : isFieldFiltered
                         ? "#e6f4df"
-                        : "white",
+                        : isFieldSorted
+                          ? "#fde8d0"
+                          : "white",
                   }}
                 >
                   {isDropTarget && (
@@ -940,6 +945,7 @@ export function GridTable({
                         isEditing={isEditing}
                         editValue={isEditing ? editingCell.value : ""}
                         isFiltered={filteredFieldIds?.has(field.id)}
+                        isSorted={sortedFieldIds?.has(field.id)}
                         searchTerm={globalSearch}
                         hasSearchMatch={hasSearchMatch}
                         virtualRowIndex={item.index}
