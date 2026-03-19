@@ -288,12 +288,8 @@ export const tableRouter = createTRPCRouter({
         const createdFields = await tx.field.createManyAndReturn({
           data: [
             { tableId: createdTable.id, name: "Name", type: "TEXT", order: 0 },
-            {
-              tableId: createdTable.id,
-              name: "Number",
-              type: "NUMBER",
-              order: 1,
-            },
+            { tableId: createdTable.id, name: "Notes", type: "TEXT", order: 1 },
+            { tableId: createdTable.id, name: "Status", type: "TEXT", order: 2 },
           ],
         });
 
@@ -304,26 +300,15 @@ export const tableRouter = createTRPCRouter({
           })),
         });
 
-        const nameField = createdFields.find((field) => field.order === 0);
-        const numberField = createdFields.find((field) => field.order === 1);
-
-        if (nameField && numberField) {
-          const cells = createdRecords.flatMap((record) => [
-            {
+        if (createdFields.length > 0 && createdRecords.length > 0) {
+          const cells = createdRecords.flatMap((record) =>
+            createdFields.map((field) => ({
               recordId: record.id,
-              fieldId: nameField.id,
-              value: faker.person.fullName(),
-            },
-            {
-              recordId: record.id,
-              fieldId: numberField.id,
-              value: String(faker.number.int({ min: 1, max: 1000 })),
-            },
-          ]);
-
-          if (cells.length > 0) {
-            await tx.cell.createMany({ data: cells });
-          }
+              fieldId: field.id,
+              value: "",
+            })),
+          );
+          await tx.cell.createMany({ data: cells });
         }
 
         return createdTable;

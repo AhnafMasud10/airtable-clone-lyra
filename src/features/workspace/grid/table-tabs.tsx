@@ -79,18 +79,105 @@ const BETA_TEXT = "rgb(194, 120, 4)";
 const BUSINESS_BG = "rgb(219, 234, 254)";
 const BUSINESS_TEXT = "rgb(30, 64, 175)";
 
-const SOURCE_ITEMS: Array<{
+function AirtableIcon() {
+  return (
+    <svg width="16" height="14" viewBox="0 0 200 170" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <path fill="rgb(255,186,5)" d="M90.04,12.37 L24.08,39.66C20.41,41.18 20.45,46.39 24.14,47.85L90.38,74.12C96.2,76.43 102.68,76.43 108.5,74.12L174.73,47.85C178.42,46.39 178.46,41.18 174.79,39.66L108.83,12.37C102.82,9.88 96.06,9.88 90.04,12.37" />
+      <path fill="rgb(57,202,255)" d="M105.31,88.46V154.08C105.31,157.2 108.46,159.33 111.36,158.18L185.17,129.54C186.85,128.87 187.96,127.24 187.96,125.43V59.81C187.96,56.69 184.81,54.55 181.91,55.7L108.1,84.35C106.42,85.02 105.31,86.65 105.31,88.46" />
+      <path fill="rgb(220,4,59)" d="M88.08,91.85L66.17,102.42L63.95,103.5L17.71,125.65C14.78,127.07 11.04,124.93 11.04,121.67V60.09C11.04,58.91 11.64,57.89 12.45,57.13C12.79,56.79 13.18,56.51 13.57,56.29C14.68,55.63 16.25,55.45 17.59,55.98L87.71,83.76C91.27,85.17 91.55,90.17 88.08,91.85" />
+      <path fill="rgba(0,0,0,0.25)" d="M88.08,91.85L66.17,102.42L12.45,57.13C12.79,56.79 13.18,56.51 13.57,56.29C14.68,55.63 16.25,55.45 17.59,55.98L87.71,83.76C91.27,85.17 91.55,90.17 88.08,91.85" />
+    </svg>
+  );
+}
+
+function CsvIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <path d="M4 1.5A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.621a1.5 1.5 0 0 0-.44-1.06L10.94 2.44A1.5 1.5 0 0 0 9.879 2H4ZM3.5 3a.5.5 0 0 1 .5-.5h5.5v2.5A1.5 1.5 0 0 0 11 6.5h1.5V13a.5.5 0 0 1-.5.5H4a.5.5 0 0 1-.5-.5V3Zm7.5-.293V4.5a.5.5 0 0 0 .5.5h1.793L11 2.707ZM5 8.5a.5.5 0 0 0-.5.5v2a.5.5 0 0 0 1 0V9a.5.5 0 0 0-.5-.5Zm3 0a.5.5 0 0 0-.5.5v2a.5.5 0 0 0 1 0V9a.5.5 0 0 0-.5-.5Zm3 0a.5.5 0 0 0-.5.5v2a.5.5 0 0 0 1 0V9a.5.5 0 0 0-.5-.5Z" />
+    </svg>
+  );
+}
+
+function GoogleCalendarIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <path d="M11.42 14.5L14.5 11.42H11.42V14.5Z" fill="#EA4335" />
+      <path d="M14.5 4.58H11.42V11.42H14.5V4.58Z" fill="#FBBC04" />
+      <path d="M11.42 11.42H4.58V14.5H11.42V11.42Z" fill="#34A853" />
+      <path d="M1.5 11.42V13.47C1.5 14.04 1.96 14.5 2.53 14.5H4.58V11.42H1.5Z" fill="#188038" />
+      <path d="M14.5 4.58V2.53C14.5 1.96 14.04 1.5 13.47 1.5H11.42V4.58H14.5Z" fill="#1967D2" />
+      <path d="M11.42 1.5H2.53C1.96 1.5 1.5 1.96 1.5 2.53V11.42H4.58V4.58H11.42V1.5Z" fill="#4285F4" />
+      <path d="M5.98 9.89C5.73 9.71 5.55 9.46 5.45 9.13L6.05 8.88C6.1 9.09 6.19 9.25 6.33 9.36C6.46 9.47 6.62 9.53 6.81 9.53C7.01 9.53 7.18 9.47 7.31 9.35C7.45 9.23 7.52 9.08 7.52 8.9C7.52 8.71 7.45 8.56 7.3 8.44C7.16 8.33 6.97 8.27 6.75 8.27H6.41V7.68H6.72C6.91 7.68 7.07 7.63 7.2 7.53C7.33 7.42 7.39 7.28 7.39 7.1C7.39 6.95 7.33 6.82 7.22 6.72C7.1 6.63 6.95 6.58 6.77 6.58C6.6 6.58 6.46 6.63 6.36 6.72C6.26 6.81 6.18 6.93 6.13 7.06L5.55 6.82C5.62 6.6 5.77 6.4 5.98 6.23C6.19 6.07 6.45 5.98 6.78 5.98C7.02 5.98 7.24 6.03 7.43 6.12C7.62 6.21 7.77 6.34 7.88 6.51C7.99 6.67 8.04 6.86 8.04 7.06C8.04 7.27 7.99 7.45 7.89 7.59C7.79 7.74 7.66 7.85 7.52 7.93V7.96C7.71 8.04 7.87 8.17 7.99 8.34C8.12 8.5 8.18 8.7 8.18 8.93C8.18 9.17 8.12 9.38 8 9.56C7.89 9.74 7.72 9.88 7.52 9.99C7.31 10.09 7.07 10.14 6.82 10.14C6.52 10.15 6.24 10.06 5.98 9.89ZM9.63 6.94L8.98 7.41L8.65 6.92L9.82 6.07H10.27V10.05H9.63V6.94Z" fill="#4285F4" />
+    </svg>
+  );
+}
+
+function GoogleSheetsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <path d="M12.33 15H3.67C3.4 15 3.15 14.89 2.96 14.71C2.77 14.52 2.67 14.27 2.67 14V2C2.67 1.73 2.77 1.48 2.96 1.29C3.15 1.11 3.4 1 3.67 1H10L13.33 4.33V14C13.33 14.27 13.23 14.52 13.04 14.71C12.85 14.89 12.6 15 12.33 15Z" fill="#43A047" />
+      <path d="M13.33 4.33H10V1L13.33 4.33Z" fill="#C8E6C9" />
+      <path d="M10 4.33L13.33 7.67V4.33H10Z" fill="#2E7D32" />
+      <path d="M10.33 7.67H5V12.33H11V7.67H10.33ZM5.67 8.33H7V9H5.67V8.33ZM5.67 9.67H7V10.33H5.67V9.67ZM5.67 11H7V11.67H5.67V11ZM10.33 11.67H7.67V11H10.33V11.67ZM10.33 10.33H7.67V9.67H10.33V10.33ZM10.33 9H7.67V8.33H10.33V9Z" fill="#E8F5E9" />
+    </svg>
+  );
+}
+
+function ExcelIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <rect x="4.5" y="2.13" width="10.5" height="12.25" rx="0.88" fill="#2FB776" />
+      <path d="M4.5 11.31H15V13.5C15 13.98 14.61 14.38 14.13 14.38H5.38C4.89 14.38 4.5 13.98 4.5 13.5V11.31Z" fill="#1B5B38" />
+      <rect x="9.75" y="8.25" width="5.25" height="3.06" fill="#229C5B" />
+      <rect x="9.75" y="5.19" width="5.25" height="3.06" fill="#27AE68" />
+      <path d="M4.5 3C4.5 2.52 4.89 2.13 5.38 2.13H9.75V5.19H4.5V3Z" fill="#1D854F" />
+      <rect x="4.5" y="5.19" width="5.25" height="3.06" fill="#197B43" />
+      <rect x="4.5" y="8.25" width="5.25" height="3.06" fill="#1B5B38" />
+      <rect x="1" y="4.31" width="7.88" height="7.88" rx="0.88" fill="#176F3D" />
+      <path d="M6.69 10.44L5.45 8.21L6.63 6.06H5.67L4.94 7.43L4.23 6.06H3.24L4.42 8.21L3.19 10.44H4.15L4.93 8.99L5.7 10.44H6.69Z" fill="white" />
+    </svg>
+  );
+}
+
+function SalesforceIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <path fillRule="evenodd" clipRule="evenodd" d="M6.62 3.65C7.13 3.11 7.84 2.78 8.63 2.78C9.68 2.78 10.6 3.37 11.09 4.24C11.52 4.04 12 3.94 12.47 3.94C14.37 3.94 15.9 5.49 15.9 7.4C15.9 9.31 14.37 10.86 12.47 10.86C12.24 10.86 12.02 10.84 11.8 10.79C11.37 11.56 10.55 12.08 9.61 12.08C9.22 12.08 8.85 11.98 8.51 11.82C8.08 12.85 7.06 13.57 5.88 13.57C4.65 13.57 3.6 12.79 3.2 11.69C3.02 11.73 2.84 11.75 2.65 11.75C1.19 11.75 0 10.55 0 9.07C0 8.6 0.12 8.14 0.35 7.73C0.59 7.32 0.92 6.98 1.33 6.75C1.16 6.36 1.07 5.94 1.07 5.52C1.07 3.82 2.46 2.43 4.16 2.43C4.64 2.43 5.11 2.54 5.53 2.75C5.96 2.96 6.33 3.27 6.62 3.65Z" fill="#00A1E0" />
+    </svg>
+  );
+}
+
+function SmartsheetIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <path d="M2.46 7.44c0 3.88-.05 7.33-.1 7.68-.05.34-.07.64-.05.67.1.09 2.56-.48 3.78-.87 2.07-.66 4.23-1.72 5.37-2.62.26-.2.51-.38.55-.38.04 0 .23.29.42.66.43.83 1.15 1.6 1.46 1.55.52-.07.52-.1.54-6.67l.03-6.05-.25.29c-.39.46-1.79 2.6-2.46 3.78-.7 1.21-2.41 4.68-2.99 6.05-.22.52-.41.85-.44.77-.03-.08-.19-.54-.36-1.02-0.87-2.55-2.25-4.64-3.02-4.64-.29 0-.05-.34.45-.63.46-.27.91-.31 1.31-.11.36.19.99.89 1.32 1.47.15.26.36.62.47.79l.19.33.64-1.25c1.05-2.02 2.45-3.98 4.12-5.74.43-.46.84-.9.91-1L14.5.15H2.46v7.29z" transform="scale(0.97)" />
+    </svg>
+  );
+}
+
+function BookOpenIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-none" style={{ shapeRendering: "geometricPrecision" }}>
+      <path d="M1.5 3.5C1.5 3.5 3 2 5.5 2C8 2 8 3.5 8 3.5V13.5C8 13.5 8 12.5 5.5 12.5C3 12.5 1.5 13.5 1.5 13.5V3.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 3.5C8 3.5 8 2 10.5 2C13 2 14.5 3.5 14.5 3.5V13.5C14.5 13.5 13 12.5 10.5 12.5C8 12.5 8 13.5 8 13.5V3.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+type SourceItem = {
   label: string;
-  icon: string;
+  icon: React.ComponentType;
   badge?: string;
-}> = [
-  { label: "Airtable base", icon: "📦" },
-  { label: "CSV file", icon: "📄" },
-  { label: "Google Calendar", icon: "📅" },
-  { label: "Google Sheets", icon: "📊" },
-  { label: "Microsoft Excel", icon: "📗" },
-  { label: "Salesforce", icon: "☁️", badge: "Business" },
-  { label: "Smartsheet", icon: "📋" },
+};
+
+const SOURCE_ITEMS: SourceItem[] = [
+  { label: "Airtable base", icon: AirtableIcon },
+  { label: "CSV file", icon: CsvIcon },
+  { label: "Google Calendar", icon: GoogleCalendarIcon },
+  { label: "Google Sheets", icon: GoogleSheetsIcon },
+  { label: "Microsoft Excel", icon: ExcelIcon },
+  { label: "Salesforce", icon: SalesforceIcon, badge: "Business" },
+  { label: "Smartsheet", icon: SmartsheetIcon },
 ];
 
 export function TableTabs({
@@ -250,20 +337,23 @@ export function TableTabs({
             ref={addButtonRef}
             type="button"
             onClick={() => setAddMenuOpen((o) => !o)}
-            className="flex items-center justify-center rounded"
+            className="flex items-center gap-1 rounded px-2"
             style={{
               height: "32px",
-              width: "32px",
+              fontSize: "13px",
+              fontWeight: 400,
               color: GREEN_DUSTY,
               backgroundColor: addMenuOpen
                 ? "rgba(64, 124, 74, 0.12)"
                 : "transparent",
+              whiteSpace: "nowrap",
             }}
             aria-expanded={addMenuOpen}
             aria-haspopup="true"
             aria-label="Add or import table"
           >
             <PlusIcon />
+            <span>Add or import</span>
           </button>
 
           {addMenuOpen &&
@@ -705,9 +795,8 @@ function AddOrImportMenu({
             style={{ color: FG_DEFAULT }}
             aria-label="Seed sample data"
           >
-            <span className="flex-none text-base mr-2">🌱</span>
             <span className="flex-auto truncate">
-              {isSeeding ? "Seeding..." : "Seed sample data (8 cols, 30 rows)"}
+              {isSeeding ? "Seeding..." : "Seed sample data"}
             </span>
           </button>
         </li>
@@ -767,35 +856,39 @@ function AddOrImportMenu({
         >
           Add from other sources
         </li>
-        {SOURCE_ITEMS.map((item) => (
-          <li key={item.label} role="menuitem" tabIndex={-1}>
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-black/5"
-              style={{ color: FG_DEFAULT }}
-              aria-label={item.label}
-            >
-              <span className="flex-none text-base">{item.icon}</span>
-              <span className="flex-auto truncate">{item.label}</span>
-              {item.badge && (
-                <span
-                  className="ml-auto flex-none rounded px-1.5 py-0.5 text-[10px] font-medium"
-                  style={{ backgroundColor: BUSINESS_BG, color: BUSINESS_TEXT }}
-                >
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          </li>
-        ))}
+        {SOURCE_ITEMS.map((item) => {
+          const Icon = item.icon;
+          return (
+            <li key={item.label} role="menuitem" tabIndex={-1}>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-black/5"
+                style={{ color: FG_DEFAULT }}
+                aria-label={item.label}
+              >
+                <span className="flex-none" style={{ color: FG_DEFAULT }}><Icon /></span>
+                <span className="flex-auto truncate">{item.label}</span>
+                {item.badge && (
+                  <span
+                    className="ml-auto flex-none rounded px-1.5 py-0.5 text-[10px] font-medium"
+                    style={{ backgroundColor: BUSINESS_BG, color: BUSINESS_TEXT }}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            </li>
+          );
+        })}
         <li role="menuitem" tabIndex={-1}>
           <button
             type="button"
-            className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-black/5"
+            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-black/5"
             style={{ color: FG_DEFAULT }}
-            aria-label="26 more sources"
+            aria-label="25 more sources"
           >
-            <span className="flex-auto truncate">26 more sources...</span>
+            <span className="flex-none" style={{ color: FG_DEFAULT }}><BookOpenIcon /></span>
+            <span className="flex-auto truncate">25 more sources...</span>
             <ChevronRightIcon />
           </button>
         </li>

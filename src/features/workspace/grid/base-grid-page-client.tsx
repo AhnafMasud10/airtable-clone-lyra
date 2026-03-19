@@ -1002,7 +1002,7 @@ export function BaseGridPageClient({
       name = `Table ${i}`;
       i++;
     }
-    createTable.mutate({ baseId, name, defaultRowCount: 0 });
+    createTable.mutate({ baseId, name, defaultRowCount: 3 });
   }, [baseId, createTable, tablesQuery.data]);
 
   const handleSeedTable = useCallback(() => {

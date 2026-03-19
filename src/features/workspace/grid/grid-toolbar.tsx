@@ -194,23 +194,34 @@ export function GridToolbar({
     hiddenCount > 0
       ? `${hiddenCount} hidden field${hiddenCount === 1 ? "" : "s"}`
       : "Hide fields";
+  const hideActive = showHidePanel || hiddenCount > 0;
 
   const isFilterComplete = (f: GridFilter) =>
     f.op === "is_empty" ||
     f.op === "is_not_empty" ||
     (f.value !== undefined && String(f.value) !== "");
   const activeFilterCount = filters.filter(isFilterComplete).length;
+  const firstFilterField = activeFilterCount > 0
+    ? allFields.find((f) => f.id === filters.find(isFilterComplete)?.fieldId)?.name
+    : null;
   const filterLabel =
     activeFilterCount > 0
-      ? `${activeFilterCount} filter${activeFilterCount === 1 ? "" : "s"}`
+      ? firstFilterField
+        ? `Filtered by ${firstFilterField}`
+        : `${activeFilterCount} filter${activeFilterCount === 1 ? "" : "s"}`
       : "Filter";
   const filterActive = showFilterPanel || activeFilterCount > 0;
 
   const sortLabel =
     sorts.length > 0
-      ? `${sorts.length} sort${sorts.length === 1 ? "" : "s"}`
+      ? `Sorted by ${sorts.length} field${sorts.length === 1 ? "" : "s"}`
       : "Sort";
   const sortActive = showSortPanel || sorts.length > 0;
+
+  // Active pill styles matching Airtable
+  const activePill = "bg-[#d0ecff] text-[rgb(29,31,37)]";
+  const orangePill = "bg-[#fde8d0] text-[rgb(29,31,37)]";
+  const inactiveStyle = "text-[rgb(97,102,112)] hover:bg-[rgb(229,233,240)]";
 
   return (
     <section
@@ -271,7 +282,7 @@ export function GridToolbar({
             ref={hideButtonRef}
             type="button"
             onClick={() => setShowHidePanel((v) => !v)}
-            className={`flex cursor-pointer items-center rounded px-2 py-1 hover:bg-[rgb(229,233,240)] ${showHidePanel || hiddenFieldIds.length > 0 ? "text-[rgb(22,110,225)]" : "text-[rgb(97,102,112)]"}`}
+            className={`flex cursor-pointer items-center rounded border px-2 py-1 ${hideActive ? `${activePill} border-[#b3d9f2]` : `${inactiveStyle} border-transparent`}`}
           >
             <svg
               width="16"
@@ -291,7 +302,7 @@ export function GridToolbar({
                 strokeWidth="1.5"
               />
             </svg>
-            <div className="ml-1 max-w-24 truncate" style={{ fontSize: 13 }}>
+            <div className="ml-1.5 max-w-40 truncate" style={{ fontSize: 13 }}>
               {hiddenLabel}
             </div>
           </button>
@@ -313,7 +324,7 @@ export function GridToolbar({
             ref={filterButtonRef}
             type="button"
             onClick={() => setShowFilterPanel((v) => !v)}
-            className={`flex cursor-pointer items-center rounded px-2 py-1 hover:bg-[rgb(229,233,240)] ${filterActive ? "text-[rgb(22,110,225)]" : "text-[rgb(97,102,112)]"}`}
+            className={`flex cursor-pointer items-center rounded border px-2 py-1 ${filterActive ? `${activePill} border-[#b3d9f2]` : `${inactiveStyle} border-transparent`}`}
           >
             <svg
               width="16"
@@ -325,7 +336,7 @@ export function GridToolbar({
             >
               <path d="M2 4.5h12a.5.5 0 0 0 0-1H2a.5.5 0 0 0 0 1Zm2 4h8a.5.5 0 0 0 0-1H4a.5.5 0 0 0 0 1Zm2 4h4a.5.5 0 0 0 0-1H6a.5.5 0 0 0 0 1Z" />
             </svg>
-            <div className="ml-1 max-w-24 truncate" style={{ fontSize: 13 }}>
+            <div className="ml-1.5 max-w-40 truncate" style={{ fontSize: 13 }}>
               {filterLabel}
             </div>
           </button>
@@ -345,7 +356,7 @@ export function GridToolbar({
             ref={groupButtonRef}
             type="button"
             onClick={() => setShowGroupPanel((v) => !v)}
-            className={`flex cursor-pointer items-center rounded px-2 py-1 hover:bg-[rgb(229,233,240)] ${showGroupPanel ? "text-[rgb(22,110,225)]" : "text-[rgb(97,102,112)]"}`}
+            className={`flex cursor-pointer items-center rounded border px-2 py-1 ${showGroupPanel ? `${activePill} border-[#b3d9f2]` : `${inactiveStyle} border-transparent`}`}
           >
             <svg
               width="16"
@@ -360,7 +371,7 @@ export function GridToolbar({
               <rect x="2" y="9" width="5" height="5" rx="1" />
               <rect x="9" y="9" width="5" height="5" rx="1" />
             </svg>
-            <div className="ml-1 max-w-24 truncate" style={{ fontSize: 13 }}>
+            <div className="ml-1.5 max-w-40 truncate" style={{ fontSize: 13 }}>
               Group
             </div>
           </button>
@@ -378,7 +389,7 @@ export function GridToolbar({
             ref={sortButtonRef}
             type="button"
             onClick={() => setShowSortPanel((v) => !v)}
-            className={`flex cursor-pointer items-center rounded px-2 py-1 hover:bg-[rgb(229,233,240)] ${sortActive ? "text-[rgb(22,110,225)]" : "text-[rgb(97,102,112)]"}`}
+            className={`flex cursor-pointer items-center rounded border px-2 py-1 ${sortActive ? `${orangePill} border-[#f5d0a9]` : `${inactiveStyle} border-transparent`}`}
           >
             <svg
               width="16"
@@ -397,7 +408,7 @@ export function GridToolbar({
                 fill="none"
               />
             </svg>
-            <div className="ml-1 max-w-24 truncate" style={{ fontSize: 13 }}>
+            <div className="ml-1.5 max-w-40 truncate" style={{ fontSize: 13 }}>
               {sortLabel}
             </div>
           </button>
